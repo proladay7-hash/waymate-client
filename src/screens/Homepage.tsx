@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { API_BASE_URL, HELLO_ENDPOINT } from '../config/api';
 
 type HelloResponse = {
@@ -8,7 +8,12 @@ type HelloResponse = {
   service: string;
 };
 
-export default function Homepage() {
+interface HomepageProps {
+  user?: { email: string; name?: string } | null;
+  onLogout?: () => void;
+}
+
+export default function Homepage({ user, onLogout }: HomepageProps = {}) {
   const [status, setStatus] = useState('Connecting to waymate-service...');
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,9 +46,21 @@ export default function Homepage() {
       <StatusBar style="dark" />
       <Text style={styles.mark}>Waymate</Text>
       <Text style={styles.subtitle}>Your companion for the road ahead.</Text>
+      {user && (
+        <View style={styles.userBadge}>
+          <Text style={styles.userBadgeText}>
+            Logged in as: <Text style={{ fontWeight: '700' }}>{user.name ?? user.email}</Text>
+          </Text>
+        </View>
+      )}
       {loading ? <ActivityIndicator style={styles.spinner} color="#16382B" /> : null}
       {message ? <Text style={styles.apiMessage}>{message}</Text> : null}
       <Text style={styles.hint}>{status}</Text>
+      {onLogout && (
+        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+          <Text style={styles.logoutButtonText}>Sign Out & Return to Login</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -84,5 +101,28 @@ const styles = StyleSheet.create({
     color: '#7A9186',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  userBadge: {
+    marginTop: 18,
+    backgroundColor: '#E2EBE5',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  userBadgeText: {
+    fontSize: 14,
+    color: '#16382B',
+  },
+  logoutButton: {
+    marginTop: 28,
+    backgroundColor: '#16382B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  logoutButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

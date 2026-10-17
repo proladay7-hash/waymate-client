@@ -1,0 +1,1144 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Modal,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { useLanguage } from '../context/LanguageContext';
+import { Vehicle, ServiceRecord } from '../data/mockVehicles';
+
+interface VehiclesScreenProps {
+  vehicles: Vehicle[];
+  onAddVehicle: (newVeh: Vehicle) => void;
+  onUpdateVehicle: (updatedVeh: Vehicle) => void;
+  onDeleteVehicle: (vehicleId: string) => void;
+  showToast: (message: string, type?: 'success' | 'info') => void;
+}
+
+export default function VehiclesScreen({
+  vehicles,
+  onAddVehicle,
+  onUpdateVehicle,
+  onDeleteVehicle,
+  showToast,
+}: VehiclesScreenProps) {
+  const { t, formatDistance } = useLanguage();
+
+  // Add Vehicle Modal state
+  const [isAddVehModalOpen, setIsAddVehModalOpen] = useState(false);
+  const [newVehType, setNewVehType] = useState<'bike' | 'car'>('bike');
+  const [newVehName, setNewVehName] = useState('');
+  const [newVehBrand, setNewVehBrand] = useState('');
+  const [newVehPlate, setNewVehPlate] = useState('');
+  const [newVehOdo, setNewVehOdo] = useState('');
+  const [newVehYear, setNewVehYear] = useState('2024');
+
+  // Add Service Record Modal state
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [selectedVehForService, setSelectedVehForService] = useState<Vehicle | null>(null);
+  const [newServiceItem, setNewServiceItem] = useState('');
+  const [newServiceOdo, setNewServiceOdo] = useState('');
+  const [newServiceCost, setNewServiceCost] = useState('');
+  const [newServiceNotes, setNewServiceNotes] = useState('');
+
+  // Quick Replace Oil Modal state
+  const [isQuickOilModalOpen, setIsQuickOilModalOpen] = useState(false);
+  const [quickOilVeh, setQuickOilVeh] = useState<Vehicle | null>(null);
+  const [quickOilOdo, setQuickOilOdo] = useState('');
+
+  // Handle Add New Vehicle
+  const handleSaveNewVehicle = () => {
+    if (!newVehName.trim() || !newVehBrand.trim() || !newVehOdo.trim()) {
+      showToast('Please fill in Model, Brand, and Current ODO', 'info');
+      return;
+    }
+
+    const odoNum = parseInt(newVehOdo, 10) || 0;
+    const yearNum = parseInt(newVehYear, 10) || 2024;
+    const today = new Date().toISOString().split('T')[0];
+
+    const newVehicle: Vehicle = {
+      id: `veh-${Date.now()}`,
+      name: newVehName.trim(),
+      brand: newVehBrand.trim(),
+      type: newVehType,
+      plateNumber: newVehPlate.trim() || 'N/A',
+      currentOdoKm: odoNum,
+      year: yearNum,
+      lastOilDate: today,
+      lastOilOdoKm: odoNum,
+      oilIntervalKm: newVehType === 'bike' ? 3000 : 5000,
+      serviceHistory: [
+        {
+          id: `srv-${Date.now()}`,
+          serviceItem: 'Initial Vehicle Registration & Inspection',
+          date: today,
+          odoKm: odoNum,
+          costVnd: '0 VND',
+          notes: 'Registered in Waymate Garage',
+        },
+      ],
+    };
+
+    onAddVehicle(newVehicle);
+    setIsAddVehModalOpen(false);
+    setNewVehName('');
+    setNewVehBrand('');
+    setNewVehPlate('');
+    setNewVehOdo('');
+    showToast(t('vehicleAddedSuccess'), 'success');
+  };
+
+  // Handle Quick Oil Replacement Log
+  const handleConfirmQuickOil = () => {
+    if (!quickOilVeh) return;
+    const odoNum = parseInt(quickOilOdo, 10) || quickOilVeh.currentOdoKm;
+    const today = new Date().toISOString().split('T')[0];
+
+    const updatedVehicle: Vehicle = {
+      ...quickOilVeh,
+      currentOdoKm: Math.max(quickOilVeh.currentOdoKm, odoNum),
+      lastOilDate: today,
+      lastOilOdoKm: odoNum,
+      serviceHistory: [
+        {
+          id: `srv-${Date.now()}`,
+          serviceItem: 'Engine Oil & Filter Replacement',
+          date: today,
+          odoKm: odoNum,
+          costVnd: '850,000 VND',
+          notes: 'Fresh synthetic oil replacement logged via Waymate Tracker',
+        },
+        ...quickOilVeh.serviceHistory,
+      ],
+    };
+
+    onUpdateVehicle(updatedVehicle);
+    setIsQuickOilModalOpen(false);
+    setQuickOilVeh(null);
+    showToast(t('oilReplacedSuccess'), 'success');
+  };
+
+  // Handle Add Service Record
+  const handleSaveServiceRecord = () => {
+    if (!selectedVehForService || !newServiceItem.trim()) {
+      showToast('Please enter the service item description', 'info');
+      return;
+    }
+
+    const odoNum = parseInt(newServiceOdo, 10) || selectedVehForService.currentOdoKm;
+    const today = new Date().toISOString().split('T')[0];
+
+    const newRecord: ServiceRecord = {
+      id: `srv-${Date.now()}`,
+      serviceItem: newServiceItem.trim(),
+      date: today,
+      odoKm: odoNum,
+      costVnd: newServiceCost.trim() ? `${newServiceCost.trim()} VND` : '0 VND',
+      notes: newServiceNotes.trim() || 'General maintenance check',
+    };
+
+    const updatedVehicle: Vehicle = {
+      ...selectedVehForService,
+      currentOdoKm: Math.max(selectedVehForService.currentOdoKm, odoNum),
+      serviceHistory: [newRecord, ...selectedVehForService.serviceHistory],
+    };
+
+    onUpdateVehicle(updatedVehicle);
+    setIsAddServiceModalOpen(false);
+    setSelectedVehForService(null);
+    setNewServiceItem('');
+    setNewServiceOdo('');
+    setNewServiceCost('');
+    setNewServiceNotes('');
+    showToast(t('serviceAddedSuccess'), 'success');
+  };
+
+  const handleDeletePrompt = (veh: Vehicle) => {
+    Alert.alert(
+      t('deleteVehicle'),
+      `${t('confirmDelete')} (${veh.name})`,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('deleteVehicle'),
+          style: 'destructive',
+          onPress: () => {
+            onDeleteVehicle(veh.id);
+            showToast(t('vehicleDeletedSuccess'), 'info');
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Top Header */}
+      <View style={styles.headerRow}>
+        <View style={styles.headerTitleWrapper}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{t('myVehicles')}</Text>
+          <Text style={styles.headerSub} numberOfLines={1} ellipsizeMode="tail">{t('vehiclesSubtitle')}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.addVehBtn}
+          onPress={() => setIsAddVehModalOpen(true)}
+          activeOpacity={0.8}
+        >
+          <AntDesign name="plus" size={13} color="#FFFFFF" />
+          <Text style={styles.addVehBtnText}>{t('addVehicle')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Vehicles List */}
+      {vehicles.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <AntDesign name="car" size={32} color="#475569" />
+          <Text style={styles.emptyText}>{t('noVehiclesYet')}</Text>
+          <TouchableOpacity
+            style={styles.emptyAddBtn}
+            onPress={() => setIsAddVehModalOpen(true)}
+          >
+            <Text style={styles.emptyAddBtnText}>{t('addVehicle')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        vehicles.map((veh) => {
+          const nextDueKm = veh.lastOilOdoKm + veh.oilIntervalKm;
+          const remainingKm = nextDueKm - veh.currentOdoKm;
+          const isDue = remainingKm <= 0;
+          const isWarning = remainingKm <= 500 && remainingKm > 0;
+
+          return (
+            <View key={veh.id} style={styles.vehicleCard}>
+              {/* Vehicle Title & Badge */}
+              <View style={styles.cardHeader}>
+                <View style={styles.vehTitleRow}>
+                  <View style={styles.vehTypeIcon}>
+                    {veh.type === 'bike' ? (
+                      <FontAwesome6 name="motorcycle" size={15} color="#FF5E1A" />
+                    ) : (
+                      <AntDesign name="car" size={16} color="#00F2FE" />
+                    )}
+                  </View>
+                  <View style={styles.vehTextWrapper}>
+                    <Text style={styles.vehName} numberOfLines={1}>{veh.name}</Text>
+                    <Text style={styles.vehPlate} numberOfLines={1} ellipsizeMode="tail">
+                      {veh.brand} • {veh.plateNumber} • {veh.year}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Delete button */}
+                <TouchableOpacity
+                  onPress={() => handleDeletePrompt(veh)}
+                  style={styles.deleteBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <AntDesign name="delete" size={14} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Current ODO Banner */}
+              <View style={styles.odoBanner}>
+                <View style={styles.odoLeft}>
+                  <AntDesign name="dashboard" size={14} color="#CBD5E1" />
+                  <Text style={styles.odoLabel}>{t('currentOdo')}</Text>
+                </View>
+                <Text style={styles.odoValue}>{formatDistance(veh.currentOdoKm)}</Text>
+              </View>
+
+              {/* Oil Maintenance Status Card */}
+              <View style={styles.oilSection}>
+                <View style={styles.oilHeaderRow}>
+                  <View style={styles.oilTitleRow}>
+                    <FontAwesome6 name="oil-can" size={13} color="#FF9F1C" />
+                    <Text style={styles.oilSectionTitle}>{t('lastOilChange')}</Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.oilStatusBadge,
+                      isDue
+                        ? styles.badgeDue
+                        : isWarning
+                        ? styles.badgeWarning
+                        : styles.badgeGood,
+                    ]}
+                  >
+                    <AntDesign
+                      name={isDue ? 'warning' : 'check-circle'}
+                      size={10}
+                      color={isDue ? '#EF4444' : isWarning ? '#FBBF24' : '#34D399'}
+                    />
+                    <Text
+                      style={[
+                        styles.oilStatusBadgeText,
+                        isDue
+                          ? { color: '#EF4444' }
+                          : isWarning
+                          ? { color: '#FBBF24' }
+                          : { color: '#34D399' },
+                      ]}
+                    >
+                      {isDue ? t('oilStatusDue') : t('oilStatusGood')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Oil Telemetry Details */}
+                <View style={styles.oilGrid}>
+                  <View style={styles.oilGridItem}>
+                    <Text style={styles.oilGridLabel}>{t('oilChangeDate')}</Text>
+                    <Text style={styles.oilGridValue}>{veh.lastOilDate}</Text>
+                  </View>
+                  <View style={styles.oilGridItem}>
+                    <Text style={styles.oilGridLabel}>{t('oilChangeOdo')}</Text>
+                    <Text style={styles.oilGridValue}>{formatDistance(veh.lastOilOdoKm)}</Text>
+                  </View>
+                  <View style={styles.oilGridItem}>
+                    <Text style={styles.oilGridLabel}>{t('nextOilDue')}</Text>
+                    <Text
+                      style={[
+                        styles.oilGridValue,
+                        isDue ? { color: '#EF4444' } : { color: '#FF9F1C' },
+                      ]}
+                    >
+                      {formatDistance(nextDueKm)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Distance Remaining Notice */}
+                <View style={styles.oilRemainingRow}>
+                  <Text style={styles.oilRemainingText}>
+                    {isDue ? (
+                      <Text style={{ color: '#EF4444', fontWeight: '800' }}>
+                        Overdue by {Math.abs(remainingKm)} KM!
+                      </Text>
+                    ) : (
+                      <>
+                        <Text style={{ color: '#34D399', fontWeight: '800' }}>
+                          {remainingKm} KM
+                        </Text>{' '}
+                        {t('remainingKm')}
+                      </>
+                    )}
+                  </Text>
+
+                  {/* Quick Replace Oil Log Button */}
+                  <TouchableOpacity
+                    style={styles.replaceOilBtn}
+                    onPress={() => {
+                      setQuickOilVeh(veh);
+                      setQuickOilOdo(veh.currentOdoKm.toString());
+                      setIsQuickOilModalOpen(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <AntDesign name="tool" size={11} color="#FFFFFF" />
+                    <Text style={styles.replaceOilBtnText}>{t('replaceOilNow')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Service & Maintenance History */}
+              <View style={styles.serviceSection}>
+                <View style={styles.serviceSectionHeader}>
+                  <View style={styles.serviceTitleRow}>
+                    <AntDesign name="file-text" size={13} color="#38BDF8" />
+                    <Text style={styles.serviceSectionTitle}>{t('serviceHistory')}</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.addRecordBtn}
+                    onPress={() => {
+                      setSelectedVehForService(veh);
+                      setNewServiceOdo(veh.currentOdoKm.toString());
+                      setIsAddServiceModalOpen(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <AntDesign name="plus" size={10} color="#FF9F1C" />
+                    <Text style={styles.addRecordBtnText}>{t('addServiceRecord')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Service History Records */}
+                <View style={styles.recordsList}>
+                  {veh.serviceHistory.map((srv) => (
+                    <View key={srv.id} style={styles.recordItem}>
+                      <View style={styles.recordMain}>
+                        <Text style={styles.recordTitle}>{srv.serviceItem}</Text>
+                        <Text style={styles.recordSub}>
+                          {srv.date} • {formatDistance(srv.odoKm)}
+                        </Text>
+                        {srv.notes ? (
+                          <Text style={styles.recordNotes}>{srv.notes}</Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.recordCostBadge}>
+                        <Text style={styles.recordCostText}>{srv.costVnd}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          );
+        })
+      )}
+
+      {/* ================= MODAL: ADD VEHICLE ================= */}
+      <Modal
+        visible={isAddVehModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAddVehModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('newVehicleTitle')}</Text>
+              <TouchableOpacity onPress={() => setIsAddVehModalOpen(false)}>
+                <AntDesign name="close" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Vehicle Type Switcher */}
+            <View style={styles.typeSwitcherRow}>
+              <TouchableOpacity
+                style={[
+                  styles.typeBtn,
+                  newVehType === 'bike' && styles.typeBtnActive,
+                ]}
+                onPress={() => setNewVehType('bike')}
+              >
+                <FontAwesome6
+                  name="motorcycle"
+                  size={14}
+                  color={newVehType === 'bike' ? '#FFFFFF' : '#94A3B8'}
+                />
+                <Text
+                  style={[
+                    styles.typeBtnText,
+                    newVehType === 'bike' && styles.typeBtnTextActive,
+                  ]}
+                >
+                  {t('bike')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.typeBtn,
+                  newVehType === 'car' && styles.typeBtnActive,
+                ]}
+                onPress={() => setNewVehType('car')}
+              >
+                <AntDesign
+                  name="car"
+                  size={15}
+                  color={newVehType === 'car' ? '#FFFFFF' : '#94A3B8'}
+                />
+                <Text
+                  style={[
+                    styles.typeBtnText,
+                    newVehType === 'car' && styles.typeBtnTextActive,
+                  ]}
+                >
+                  {t('car')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Inputs */}
+            <View style={styles.modalForm}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('vehicleName')}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. BMW R1250 GS or Honda Civic"
+                  placeholderTextColor="#64748B"
+                  value={newVehName}
+                  onChangeText={setNewVehName}
+                />
+              </View>
+
+              <View style={styles.modalRowInputs}>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>{t('brand')}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. BMW, Honda"
+                    placeholderTextColor="#64748B"
+                    value={newVehBrand}
+                    onChangeText={setNewVehBrand}
+                  />
+                </View>
+
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>{t('plateNumber')}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. 59-A1 999.88"
+                    placeholderTextColor="#64748B"
+                    value={newVehPlate}
+                    onChangeText={setNewVehPlate}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalRowInputs}>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>{t('currentOdo')}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. 15000"
+                    placeholderTextColor="#64748B"
+                    keyboardType="number-pad"
+                    value={newVehOdo}
+                    onChangeText={setNewVehOdo}
+                  />
+                </View>
+
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>{t('year')}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="2024"
+                    placeholderTextColor="#64748B"
+                    keyboardType="number-pad"
+                    value={newVehYear}
+                    onChangeText={setNewVehYear}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Actions */}
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setIsAddVehModalOpen(false)}
+              >
+                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleSaveNewVehicle}
+              >
+                <Text style={styles.saveBtnText}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= MODAL: QUICK OIL LOG ================= */}
+      <Modal
+        visible={isQuickOilModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsQuickOilModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('replaceOilNow')}</Text>
+              <TouchableOpacity onPress={() => setIsQuickOilModalOpen(false)}>
+                <AntDesign name="close" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitleText}>
+              Vehicle: <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{quickOilVeh?.name}</Text>
+            </Text>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>Current ODO (KM) at Oil Replacement</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="e.g. 15420"
+                placeholderTextColor="#64748B"
+                keyboardType="number-pad"
+                value={quickOilOdo}
+                onChangeText={setQuickOilOdo}
+              />
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setIsQuickOilModalOpen(false)}
+              >
+                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleConfirmQuickOil}
+              >
+                <Text style={styles.saveBtnText}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ================= MODAL: ADD SERVICE RECORD ================= */}
+      <Modal
+        visible={isAddServiceModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAddServiceModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('addServiceRecord')}</Text>
+              <TouchableOpacity onPress={() => setIsAddServiceModalOpen(false)}>
+                <AntDesign name="close" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitleText}>
+              Vehicle: <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{selectedVehForService?.name}</Text>
+            </Text>
+
+            <View style={styles.modalForm}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('serviceItem')}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. Brake Fluid Flush, New Tires"
+                  placeholderTextColor="#64748B"
+                  value={newServiceItem}
+                  onChangeText={setNewServiceItem}
+                />
+              </View>
+
+              <View style={styles.modalRowInputs}>
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>ODO (KM)</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. 15420"
+                    placeholderTextColor="#64748B"
+                    keyboardType="number-pad"
+                    value={newServiceOdo}
+                    onChangeText={setNewServiceOdo}
+                  />
+                </View>
+
+                <View style={[styles.fieldGroup, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>{t('cost')}</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="e.g. 850,000"
+                    placeholderTextColor="#64748B"
+                    value={newServiceCost}
+                    onChangeText={setNewServiceCost}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('notes')}</Text>
+                <TextInput
+                  style={[styles.modalInput, { height: 60 }]}
+                  placeholder="Service center, brand of parts used, etc."
+                  placeholderTextColor="#64748B"
+                  multiline
+                  value={newServiceNotes}
+                  onChangeText={setNewServiceNotes}
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setIsAddServiceModalOpen(false)}
+              >
+                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleSaveServiceRecord}
+              >
+                <Text style={styles.saveBtnText}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 32,
+    gap: 14,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  headerTitleWrapper: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  headerTitle: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  headerSub: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  addVehBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FF5E1A',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    flexShrink: 0,
+    shadowColor: '#FF5E1A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  addVehBtnText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  emptyCard: {
+    backgroundColor: 'rgba(21, 28, 44, 0.85)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  emptyAddBtn: {
+    backgroundColor: '#FF5E1A',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  emptyAddBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  vehicleCard: {
+    backgroundColor: 'rgba(21, 28, 44, 0.85)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  vehTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  vehTextWrapper: {
+    flex: 1,
+    minWidth: 0,
+  },
+  vehTypeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  vehName: {
+    fontSize: 13.5,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  vehPlate: {
+    fontSize: 9.5,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  deleteBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    flexShrink: 0,
+  },
+  odoBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  odoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  odoLabel: {
+    fontSize: 11,
+    color: '#CBD5E1',
+    fontWeight: '600',
+  },
+  odoValue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#00F2FE',
+  },
+  oilSection: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    padding: 10,
+    gap: 8,
+  },
+  oilHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  oilTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  oilSectionTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  oilStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  badgeGood: {
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  badgeWarning: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  },
+  badgeDue: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  oilStatusBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  oilGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    backgroundColor: '#0B0F19',
+    borderRadius: 10,
+    padding: 8,
+  },
+  oilGridItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  oilGridLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    marginBottom: 2,
+  },
+  oilGridValue: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#E2E8F0',
+  },
+  oilRemainingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 2,
+  },
+  oilRemainingText: {
+    fontSize: 10,
+    color: '#CBD5E1',
+  },
+  replaceOilBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FF5E1A',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  replaceOilBtnText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  serviceSection: {
+    gap: 8,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(30, 41, 59, 0.6)',
+  },
+  serviceSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  serviceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  serviceSectionTitle: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#CBD5E1',
+  },
+  addRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  addRecordBtnText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#FF9F1C',
+  },
+  recordsList: {
+    gap: 6,
+  },
+  recordItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  recordMain: {
+    flex: 1,
+    marginRight: 8,
+  },
+  recordTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  recordSub: {
+    fontSize: 9,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  recordNotes: {
+    fontSize: 9,
+    color: '#64748B',
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  recordCostBadge: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  recordCostText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#34D399',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#0F172A',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 18,
+    width: '100%',
+    maxWidth: 440,
+    gap: 14,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  modalSubtitleText: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  typeSwitcherRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  typeBtnActive: {
+    backgroundColor: '#FF5E1A',
+    borderColor: '#FF5E1A',
+  },
+  typeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  typeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  modalForm: {
+    gap: 10,
+  },
+  fieldGroup: {
+    gap: 4,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#CBD5E1',
+  },
+  modalRowInputs: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modalInput: {
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 42,
+    color: '#FFFFFF',
+    fontSize: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 6,
+  },
+  cancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#1E293B',
+  },
+  cancelBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  saveBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#FF5E1A',
+  },
+  saveBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+});

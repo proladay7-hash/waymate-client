@@ -3,21 +3,33 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "expo": "~57.0.29",
+    "expo-auth-session": "~57.0.16",
+    "expo-crypto": "~57.0.4",
+    "expo-font": "~57.0.4",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-location": "~57.0.21",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
+    "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~57.0.2",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start --port 8781",
-    "android": "expo run:android --port 8781",
-    "ios": "expo run:ios --port 8781",
-    "web": "expo start --web --port 8781"
+    "start": "expo start --port 8782",
+    "android": "expo run:android --port 8782",
+    "ios": "expo run:ios --port 8782",
+    "web": "expo start --web --port 8782",
+    "lint": "expo lint"
   },
   "private": true
 }

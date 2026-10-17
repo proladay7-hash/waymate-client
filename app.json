@@ -9,10 +9,17 @@
     "scheme": "waymate",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.waymate.app"
+      "bundleIdentifier": "com.waymate.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Waymate needs your location to show nearby rides and track trip telemetry."
+      }
     },
     "android": {
       "package": "com.waymate.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#F4F7F5",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,7 +32,17 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "http://localhost:8780"
-    }
+      "apiUrl": "http://192.168.2.7:8781"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Waymate uses your location to show nearby rides, routes, and biker community events."
+        }
+      ],
+      "expo-web-browser"
+    ]
   }
 }
