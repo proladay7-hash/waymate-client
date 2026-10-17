@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { updatePasswordApi } from '../services/authApi';
 
 interface ChangePasswordScreenProps {
@@ -25,6 +26,7 @@ export default function ChangePasswordScreen({
   showToast,
 }: ChangePasswordScreenProps) {
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -63,7 +65,7 @@ export default function ChangePasswordScreen({
     setIsLoading(true);
     try {
       const res = await updatePasswordApi({
-        email: userEmail || 'rider_alex@waymate.app',
+        email: userEmail || 'proladay7@gmail.com',
         oldPassword: currentPassword,
         newPassword,
       });
@@ -80,32 +82,32 @@ export default function ChangePasswordScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <AntDesign name="arrow-left" size={16} color="#94A3B8" />
+            <AntDesign name="arrow-left" size={16} color={colors.mBlue} />
           </TouchableOpacity>
           <View>
-            <Text style={styles.title}>{t('changePwdTitle')}</Text>
-            <Text style={styles.subtitle}>{t('changePwdSubtitle')}</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{t('changePwdTitle')}</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('changePwdSubtitle')}</Text>
           </View>
         </View>
 
         {/* Current Password */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>{t('currentPassword')}</Text>
-          <View style={styles.inputWrapper}>
-            <AntDesign name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('currentPassword')}</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <AntDesign name="lock" size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.inputField}
+              style={[styles.inputField, { color: colors.text }]}
               placeholder="••••••••"
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inputPlaceholder}
               secureTextEntry
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -115,13 +117,13 @@ export default function ChangePasswordScreen({
 
         {/* New Password & Strength */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>{t('newPassword')}</Text>
-          <View style={styles.inputWrapper}>
-            <AntDesign name="key" size={16} color="#94A3B8" style={styles.inputIcon} />
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('newPassword')}</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <AntDesign name="key" size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.inputField}
+              style={[styles.inputField, { color: colors.text }]}
               placeholder="Min 8 characters"
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inputPlaceholder}
               secureTextEntry
               value={newPassword}
               onChangeText={setNewPassword}
@@ -131,7 +133,7 @@ export default function ChangePasswordScreen({
           {/* Strength Meter Bar */}
           <View style={styles.strengthContainer}>
             <View style={styles.strengthLabelRow}>
-              <Text style={styles.strengthDesc}>{t('securityStrength')}:</Text>
+              <Text style={[styles.strengthDesc, { color: colors.textMuted }]}>{t('securityStrength')}:</Text>
               <Text style={[styles.strengthValue, { color: strength.color }]}>
                 {strength.label}
               </Text>
@@ -140,18 +142,21 @@ export default function ChangePasswordScreen({
               <View
                 style={[
                   styles.strengthBarSegment,
+                  { backgroundColor: colors.border },
                   strength.score >= 1 && { backgroundColor: strength.color },
                 ]}
               />
               <View
                 style={[
                   styles.strengthBarSegment,
+                  { backgroundColor: colors.border },
                   strength.score >= 2 && { backgroundColor: strength.color },
                 ]}
               />
               <View
                 style={[
                   styles.strengthBarSegment,
+                  { backgroundColor: colors.border },
                   strength.score >= 3 && { backgroundColor: strength.color },
                 ]}
               />
@@ -161,13 +166,13 @@ export default function ChangePasswordScreen({
 
         {/* Confirm New Password */}
         <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>{t('confirmNewPassword')}</Text>
-          <View style={styles.inputWrapper}>
-            <AntDesign name="safety" size={16} color="#94A3B8" style={styles.inputIcon} />
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('confirmNewPassword')}</Text>
+          <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+            <AntDesign name="safety" size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.inputField}
+              style={[styles.inputField, { color: colors.text }]}
               placeholder="Re-enter new password"
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inputPlaceholder}
               secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -183,7 +188,7 @@ export default function ChangePasswordScreen({
           disabled={isLoading}
         >
           <LinearGradient
-            colors={['#FF5E1A', '#FF9F1C']}
+            colors={colors.mGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.btnGradient}

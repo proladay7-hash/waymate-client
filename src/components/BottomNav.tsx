@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { ScreenId } from './TopBar';
 
 interface BottomNavProps {
@@ -11,84 +12,64 @@ interface BottomNavProps {
 
 export default function BottomNav({ currentScreen, onNavigate }: BottomNavProps) {
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
+
+  const navItems = [
+    { id: 'home' as ScreenId, icon: 'appstore' as const, label: t('navFeed') },
+    { id: 'trip' as ScreenId, icon: 'environment' as const, label: t('navTrips') },
+    { id: 'vehicles' as ScreenId, icon: 'car' as const, label: t('navGarage') },
+    { id: 'profile' as ScreenId, icon: 'user' as const, label: t('navProfile') },
+  ];
 
   return (
-    <View style={styles.container}>
-      {/* Feed Tab */}
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => onNavigate('home')}
-        activeOpacity={0.7}
-      >
-        <AntDesign
-          name="appstore"
-          size={18}
-          color={currentScreen === 'home' ? '#FF5E1A' : '#94A3B8'}
-        />
-        <Text
-          style={[styles.navText, currentScreen === 'home' && styles.navTextActive]}
-          numberOfLines={1}
-        >
-          {t('navFeed')}
-        </Text>
-      </TouchableOpacity>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+        },
+      ]}
+    >
+      {navItems.map((item) => {
+        const isActive = currentScreen === item.id;
+        const activeColor = colors.mBlue;
+        const inactiveColor = colors.textMuted;
 
-      {/* Trips Tab */}
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => onNavigate('trip')}
-        activeOpacity={0.7}
-      >
-        <AntDesign
-          name="environment"
-          size={18}
-          color={currentScreen === 'trip' ? '#FF5E1A' : '#94A3B8'}
-        />
-        <Text
-          style={[styles.navText, currentScreen === 'trip' && styles.navTextActive]}
-          numberOfLines={1}
-        >
-          {t('navTrips')}
-        </Text>
-      </TouchableOpacity>
-
-      {/* My Vehicles Tab */}
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => onNavigate('vehicles')}
-        activeOpacity={0.7}
-      >
-        <AntDesign
-          name="car"
-          size={18}
-          color={currentScreen === 'vehicles' ? '#FF5E1A' : '#94A3B8'}
-        />
-        <Text
-          style={[styles.navText, currentScreen === 'vehicles' && styles.navTextActive]}
-          numberOfLines={1}
-        >
-          {t('navGarage')}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Profile Tab */}
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => onNavigate('profile')}
-        activeOpacity={0.7}
-      >
-        <AntDesign
-          name="user"
-          size={18}
-          color={currentScreen === 'profile' ? '#FF5E1A' : '#94A3B8'}
-        />
-        <Text
-          style={[styles.navText, currentScreen === 'profile' && styles.navTextActive]}
-          numberOfLines={1}
-        >
-          {t('navProfile')}
-        </Text>
-      </TouchableOpacity>
+        return (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.navItem}
+            onPress={() => onNavigate(item.id)}
+            activeOpacity={0.7}
+          >
+            {/* Active Indicator Line on top of tab */}
+            {isActive && (
+              <View
+                style={[
+                  styles.activeIndicator,
+                  { backgroundColor: activeColor },
+                ]}
+              />
+            )}
+            <AntDesign
+              name={item.icon}
+              size={18}
+              color={isActive ? activeColor : inactiveColor}
+            />
+            <Text
+              style={[
+                styles.navText,
+                { color: isActive ? activeColor : inactiveColor },
+                isActive && styles.navTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -97,26 +78,32 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0B0F19',
     borderTopWidth: 1,
-    borderTopColor: '#1E293B',
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 8,
+    position: 'relative',
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    paddingVertical: 2,
+    paddingVertical: 3,
     minWidth: 0,
+    position: 'relative',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    top: -7,
+    width: 22,
+    height: 3,
+    borderRadius: 2,
   },
   navText: {
     fontSize: 9.5,
-    fontWeight: '700',
-    color: '#94A3B8',
+    fontWeight: '600',
   },
   navTextActive: {
-    color: '#FF5E1A',
+    fontWeight: '800',
   },
 });

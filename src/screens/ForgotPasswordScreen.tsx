@@ -12,7 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
-import { sendForgotPasswordOtpApi, resetPasswordApi } from '../services/authApi';
+import { useTheme } from '../context/ThemeContext';
+import { sendForgotPasswordOtpApi, verifyOtpApi, resetPasswordApi } from '../services/authApi';
 
 interface ForgotPasswordScreenProps {
   onBackToLogin: () => void;
@@ -24,9 +25,10 @@ export default function ForgotPasswordScreen({
   showToast,
 }: ForgotPasswordScreenProps) {
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [email, setEmail] = useState('rider_alex@waymate.app');
+  const [email, setEmail] = useState('proladay7@gmail.com');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -41,7 +43,7 @@ export default function ForgotPasswordScreen({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    if (step === 2 && countdown > 0) {
+    if (step === 2 && !isExpired) {
       interval = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
@@ -55,7 +57,7 @@ export default function ForgotPasswordScreen({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [step, countdown]);
+  }, [step, isExpired]);
 
   const handleSendOtp = async () => {
     if (!email.trim() || !email.includes('@')) {
@@ -77,7 +79,7 @@ export default function ForgotPasswordScreen({
     }
   };
 
-  const handleVerifyOtp = () => {
+  const handleVerifyOtp = async () => {
     const code = otpDigits.join('');
     if (code.length < 6) {
       showToast(t('invalidOtpLength'), 'info');
@@ -87,8 +89,16 @@ export default function ForgotPasswordScreen({
       showToast(t('codeExpired'), 'info');
       return;
     }
-    setStep(3);
-    showToast(t('otpVerifiedSuccess'), 'success');
+    setIsLoading(true);
+    try {
+      const res = await verifyOtpApi({ email: email.trim(), code });
+      showToast(res.message || t('otpVerifiedSuccess'), 'success');
+      setStep(3);
+    } catch (err: any) {
+      showToast(err.message || 'Invalid 6-digit verification code', 'info');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = async () => {
@@ -141,37 +151,37 @@ export default function ForgotPasswordScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Header Icon & Title */}
         <View style={styles.header}>
-          <View style={styles.iconCircle}>
-            <AntDesign name="key" size={22} color="#FF9F1C" />
+          <View style={[styles.iconCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <AntDesign name="key" size={22} color={colors.mBlue} />
           </View>
-          <Text style={styles.title}>{t('resetPassword')}</Text>
-          <Text style={styles.subtitle}>{t('forgotSubtitle')}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t('resetPassword')}</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('forgotSubtitle')}</Text>
         </View>
 
         {/* Step Progress Indicator */}
         <View style={styles.stepIndicatorRow}>
-          <View style={[styles.stepDot, step === 1 && styles.stepDotActive]}>
-            <Text style={[styles.stepDotText, step === 1 && styles.stepDotTextActive]}>
+          <View style={[styles.stepDot, { backgroundColor: colors.surface }, step === 1 && { backgroundColor: colors.mBlue }]}>
+            <Text style={[styles.stepDotText, { color: colors.textMuted }, step === 1 && { color: '#FFFFFF', fontWeight: '800' }]}>
               {t('step1Email')}
             </Text>
           </View>
-          <AntDesign name="arrow-right" size={9} color="#475569" />
-          <View style={[styles.stepDot, step === 2 && styles.stepDotActive]}>
-            <Text style={[styles.stepDotText, step === 2 && styles.stepDotTextActive]}>
+          <AntDesign name="arrow-right" size={9} color={colors.textMuted} />
+          <View style={[styles.stepDot, { backgroundColor: colors.surface }, step === 2 && { backgroundColor: colors.mBlue }]}>
+            <Text style={[styles.stepDotText, { color: colors.textMuted }, step === 2 && { color: '#FFFFFF', fontWeight: '800' }]}>
               {t('step2Verification')}
             </Text>
           </View>
-          <AntDesign name="arrow-right" size={9} color="#475569" />
-          <View style={[styles.stepDot, step === 3 && styles.stepDotActive]}>
-            <Text style={[styles.stepDotText, step === 3 && styles.stepDotTextActive]}>
+          <AntDesign name="arrow-right" size={9} color={colors.textMuted} />
+          <View style={[styles.stepDot, { backgroundColor: colors.surface }, step === 3 && { backgroundColor: colors.mBlue }]}>
+            <Text style={[styles.stepDotText, { color: colors.textMuted }, step === 3 && { color: '#FFFFFF', fontWeight: '800' }]}>
               {t('step3NewPassword')}
             </Text>
           </View>
@@ -181,13 +191,13 @@ export default function ForgotPasswordScreen({
         {step === 1 && (
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{t('registeredEmail')}</Text>
-              <View style={styles.inputWrapper}>
-                <AntDesign name="mail" size={15} color="#94A3B8" style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('registeredEmail')}</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                <AntDesign name="mail" size={15} color={colors.textMuted} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.inputField}
+                  style={[styles.inputField, { color: colors.text }]}
                   placeholder="rider@waymate.app"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.inputPlaceholder}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
@@ -203,7 +213,7 @@ export default function ForgotPasswordScreen({
               disabled={isLoading}
             >
               <LinearGradient
-                colors={['#FF5E1A', '#FF9F1C']}
+                colors={colors.mGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
@@ -227,19 +237,19 @@ export default function ForgotPasswordScreen({
         {/* STEP 2: 6-Digit OTP Verification with 1-Min Expiration Countdown */}
         {step === 2 && (
           <View style={styles.form}>
-            <Text style={styles.otpPrompt}>
+            <Text style={[styles.otpPrompt, { color: colors.textSecondary }]}>
               {t('enterCodeSentTo')}{' '}
-              <Text style={styles.otpEmailHighlight}>{email}</Text>
+              <Text style={[styles.otpEmailHighlight, { color: colors.mBlue }]}>{email}</Text>
             </Text>
 
             {/* Expiration Countdown Bar */}
-            <View style={[styles.timerBadge, isExpired ? styles.timerBadgeExpired : styles.timerBadgeActive]}>
+            <View style={[styles.timerBadge, isExpired ? styles.timerBadgeExpired : { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <FontAwesome6
                 name={isExpired ? 'circle-exclamation' : 'clock'}
                 size={12}
-                color={isExpired ? '#EF4444' : '#FBBF24'}
+                color={isExpired ? colors.danger : colors.warning}
               />
-              <Text style={[styles.timerText, isExpired && styles.timerTextExpired]}>
+              <Text style={[styles.timerText, { color: colors.textSecondary }, isExpired && styles.timerTextExpired]}>
                 {isExpired ? t('codeExpired') : `${t('otpExpiresIn')}: ${formattedTimer}`}
               </Text>
             </View>
@@ -254,8 +264,9 @@ export default function ForgotPasswordScreen({
                   }}
                   style={[
                     styles.otpBox,
-                    digit ? styles.otpBoxFilled : null,
-                    isExpired ? styles.otpBoxExpired : null,
+                    { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text },
+                    digit ? { borderColor: colors.mBlue } : null,
+                    isExpired ? { borderColor: colors.danger } : null,
                   ]}
                   value={digit}
                   onChangeText={(val) => handleOtpChange(val, index)}
@@ -277,12 +288,12 @@ export default function ForgotPasswordScreen({
               <AntDesign
                 name="reload"
                 size={11}
-                color={isExpired ? '#FF5E1A' : '#64748B'}
+                color={isExpired ? colors.mBlue : colors.textMuted}
               />
               <Text
                 style={[
                   styles.resendText,
-                  isExpired ? styles.resendTextActive : styles.resendTextDim,
+                  { color: isExpired ? colors.mBlue : colors.textMuted },
                 ]}
               >
                 {t('resendCode')}
@@ -293,16 +304,22 @@ export default function ForgotPasswordScreen({
               style={styles.submitBtn}
               activeOpacity={0.85}
               onPress={handleVerifyOtp}
-              disabled={isExpired}
+              disabled={isExpired || isLoading}
             >
               <LinearGradient
-                colors={isExpired ? ['#475569', '#334155'] : ['#FF5E1A', '#FF9F1C']}
+                colors={isExpired ? ['#475569', '#334155'] : colors.mGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
               >
-                <Text style={styles.btnText}>{t('verifyCode')}</Text>
-                <AntDesign name="check" size={13} color="#FFFFFF" />
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.btnText}>{t('verifyCode')}</Text>
+                    <AntDesign name="check" size={13} color="#FFFFFF" />
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -312,13 +329,13 @@ export default function ForgotPasswordScreen({
         {step === 3 && (
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{t('setNewPassword')}</Text>
-              <View style={styles.inputWrapper}>
-                <AntDesign name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('setNewPassword')}</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                <AntDesign name="lock" size={16} color={colors.textMuted} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.inputField}
+                  style={[styles.inputField, { color: colors.text }]}
                   placeholder="Min. 6 characters"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.inputPlaceholder}
                   secureTextEntry={!showPassword}
                   value={newPassword}
                   onChangeText={setNewPassword}
@@ -327,20 +344,20 @@ export default function ForgotPasswordScreen({
                   <AntDesign
                     name={showPassword ? 'eye-invisible' : 'eye'}
                     size={16}
-                    color="#94A3B8"
+                    color={colors.textMuted}
                   />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{t('confirmNewPassword')}</Text>
-              <View style={styles.inputWrapper}>
-                <AntDesign name="lock" size={16} color="#94A3B8" style={styles.inputIcon} />
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('confirmNewPassword')}</Text>
+              <View style={[styles.inputWrapper, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+                <AntDesign name="lock" size={16} color={colors.textMuted} style={styles.inputIcon} />
                 <TextInput
-                  style={styles.inputField}
+                  style={[styles.inputField, { color: colors.text }]}
                   placeholder="Re-enter password"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.inputPlaceholder}
                   secureTextEntry={!showPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -355,7 +372,7 @@ export default function ForgotPasswordScreen({
               disabled={isLoading}
             >
               <LinearGradient
-                colors={['#059669', '#10B981']}
+                colors={colors.mGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
@@ -382,8 +399,8 @@ export default function ForgotPasswordScreen({
           onPress={onBackToLogin}
           activeOpacity={0.7}
         >
-          <AntDesign name="arrow-left" size={12} color="#94A3B8" />
-          <Text style={styles.backLinkText}>{t('backToLogIn')}</Text>
+          <AntDesign name="arrow-left" size={12} color={colors.mBlue} />
+          <Text style={[styles.backLinkText, { color: colors.mBlue }]}>{t('backToLogIn')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

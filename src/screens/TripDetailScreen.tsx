@@ -11,10 +11,13 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { mockTripsData, TripData } from '../data/mockTrips';
+import { openGoogleMapsNavigation, openGoogleMapsLinkOrCoords } from '../utils/mapUtils';
 
 interface TripDetailScreenProps {
   tripId: string;
+  trips?: TripData[];
   onBack: () => void;
   savedTripIds: string[];
   onToggleSaveTrip: (tripId: string) => void;
@@ -23,15 +26,17 @@ interface TripDetailScreenProps {
 
 export default function TripDetailScreen({
   tripId,
+  trips,
   onBack,
   savedTripIds,
   onToggleSaveTrip,
   showToast,
 }: TripDetailScreenProps) {
   const { language, t, formatDistance, formatSpeed } = useLanguage();
+  const { colors, isDark } = useTheme();
 
-  const trip: TripData =
-    mockTripsData.find((t) => t.id === tripId) ?? mockTripsData[0];
+  const allTrips = trips && trips.length > 0 ? trips : mockTripsData;
+  const trip: TripData = allTrips.find((t) => t.id === tripId) ?? allTrips[0];
   const isSaved = savedTripIds.includes(trip.id);
 
   const displayTitle = language === 'VIE' ? trip.titleVie : trip.title;
@@ -39,7 +44,7 @@ export default function TripDetailScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
@@ -47,129 +52,211 @@ export default function TripDetailScreen({
       <View style={styles.headerControls}>
         <TouchableOpacity
           onPress={onBack}
-          style={styles.backBtn}
+          style={[styles.backBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
           activeOpacity={0.7}
         >
-          <AntDesign name="arrow-left" size={16} color="#CBD5E1" />
-          <Text style={styles.backBtnText} numberOfLines={1}>{t('backToFeed')}</Text>
+          <AntDesign name="arrow-left" size={16} color={colors.text} />
+          <Text style={[styles.backBtnText, { color: colors.text }]} numberOfLines={1}>{t('backToFeed')}</Text>
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
           <TouchableOpacity
-            style={styles.saveBtn}
+            style={[styles.saveBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             onPress={() => onToggleSaveTrip(trip.id)}
             activeOpacity={0.8}
           >
             <AntDesign
               name="heart"
               size={14}
-              color={isSaved ? '#EF4444' : '#64748B'}
+              color={isSaved ? colors.mRed : colors.textMuted}
             />
-            <Text style={[styles.saveBtnText, isSaved && styles.saveBtnTextSaved]} numberOfLines={1}>
+            <Text style={[styles.saveBtnText, { color: isSaved ? colors.mRed : colors.textSecondary }, isSaved && styles.saveBtnTextSaved]} numberOfLines={1}>
               {isSaved ? t('savedInFavorites') : t('saveTrip')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.exportBtn}
+            style={[styles.exportBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             onPress={() => showToast(t('gpxExported'), 'success')}
             activeOpacity={0.8}
           >
-            <AntDesign name="export" size={14} color="#CBD5E1" />
+            <AntDesign name="export" size={14} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Title & Author Info */}
       <View style={styles.titleSection}>
-        <Text style={styles.tripTitle}>{displayTitle}</Text>
+        <Text style={[styles.tripTitle, { color: colors.text }]}>{displayTitle}</Text>
         <View style={styles.authorSubtitleRow}>
-          <Text style={styles.authorSubtitleText}>
-            {t('by')} <Text style={styles.authorNameText}>{trip.riderName}</Text>
+          <Text style={[styles.authorSubtitleText, { color: colors.textMuted }]}>
+            {t('by')} <Text style={[styles.authorNameText, { color: colors.mBlue }]}>{trip.riderName}</Text>
           </Text>
-          <Text style={styles.bulletSeparator}>•</Text>
-          <Text style={styles.bikeModelText}>{trip.bikeModel}</Text>
+          <Text style={[styles.bulletSeparator, { color: colors.textMuted }]}>•</Text>
+          <Text style={[styles.bikeModelText, { color: colors.textMuted }]}>{trip.bikeModel}</Text>
         </View>
-        <Text style={styles.descriptionText}>{displayDescription}</Text>
+        <Text style={[styles.descriptionText, { color: colors.textSecondary }]}>{displayDescription}</Text>
       </View>
 
       {/* 4 Telemetry Stats Cards */}
       <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t('distance')}</Text>
-          <Text style={styles.statValue}>{formatDistance(trip.distanceKm)}</Text>
+        <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('distance')}</Text>
+          <Text style={[styles.statValue, { color: colors.text }]}>{formatDistance(trip.distanceKm)}</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t('avgSpeed')}</Text>
-          <Text style={[styles.statValue, { color: '#38BDF8' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('avgSpeed')}</Text>
+          <Text style={[styles.statValue, { color: colors.mBlue }]}>
             {formatSpeed(trip.avgVelocityKmh)}
           </Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t('maxSpeed')}</Text>
-          <Text style={[styles.statValue, { color: '#FF9F1C' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('maxSpeed')}</Text>
+          <Text style={[styles.statValue, { color: colors.mRed }]}>
             {formatSpeed(trip.maxVelocityKmh)}
           </Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t('group')}</Text>
-          <Text style={[styles.statValue, { color: '#34D399' }]}>
+        <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>{t('group')}</Text>
+          <Text style={[styles.statValue, { color: colors.success }]}>
             {trip.groupSize.split(' ')[0]}
           </Text>
         </View>
       </View>
 
-      {/* Dynamic Dark Mode Route Map Visualizer Mock (Elevation Profile) */}
-      <View style={styles.mapCard}>
+      {/* Dynamic Route Map Visualizer Mock (Elevation Profile) */}
+      <View style={[styles.mapCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.mapCardHeader}>
           <View style={styles.mapCardTitleRow}>
-            <AntDesign name="dashboard" size={13} color="#FF5E1A" />
-            <Text style={styles.mapCardTitle}>{t('routeElevationProfile')}</Text>
+            <FontAwesome6 name="route" size={13} color={colors.mBlue} />
+            <Text style={[styles.mapCardTitle, { color: colors.text }]}>{t('routeElevationProfile')}</Text>
           </View>
-          <Text style={styles.mapCardActive}>{t('gpsTrackActive')}</Text>
+          <Text style={[styles.mapCardActive, { color: colors.mBlue }]}>{t('gpsTrackActive')}</Text>
         </View>
 
         {/* Graphic SVG Map Elevation Trace */}
         <View style={styles.svgContainer}>
           <Svg width="100%" height={90} viewBox="0 0 300 80">
             <Defs>
-              <SvgLinearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor="#FF9F1C" />
-                <Stop offset="50%" stopColor="#FF5E1A" />
-                <Stop offset="100%" stopColor="#00F2FE" />
+              <SvgLinearGradient id="mTrackGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor={colors.mBlue} />
+                <Stop offset="50%" stopColor={colors.mMotorsportBlue} />
+                <Stop offset="100%" stopColor={colors.mRed} />
               </SvgLinearGradient>
             </Defs>
             <Path
               d="M 10 60 Q 50 10, 90 40 T 170 20 T 250 65 T 290 30"
-              stroke="url(#orangeGradient)"
+              stroke="url(#mTrackGradient)"
               strokeWidth="3.5"
               fill="none"
               strokeLinecap="round"
             />
-            <Circle cx="10" cy="60" r="5" fill="#FF9F1C" />
-            <Circle cx="170" cy="20" r="4.5" fill="#FF5E1A" />
-            <Circle cx="290" cy="30" r="5" fill="#00F2FE" />
+            <Circle cx="10" cy="60" r="5" fill={colors.mBlue} />
+            <Circle cx="170" cy="20" r="4.5" fill={colors.mMotorsportBlue} />
+            <Circle cx="290" cy="30" r="5" fill={colors.mRed} />
           </Svg>
 
-          <View style={styles.startTag}>
-            <Text style={styles.startTagText}>{t('startPoint')}</Text>
+          <View style={[styles.startTag, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.startTagText, { color: colors.mBlue }]}>{t('startPoint')}</Text>
           </View>
-          <View style={styles.destTag}>
-            <Text style={styles.destTagText}>{t('destinationPeak')}</Text>
+          <View style={[styles.destTag, { backgroundColor: colors.mRedMuted, borderColor: colors.mRed }]}>
+            <Text style={[styles.destTagText, { color: colors.mRed }]}>{t('destinationPeak')}</Text>
           </View>
         </View>
       </View>
 
+      {/* Google Maps Destination & Navigation Action Card */}
+      {(trip.destination || trip.googleMapsUrl) && (
+        <View style={[styles.destCard, { backgroundColor: colors.card, borderColor: colors.mBlueMuted }]}>
+          <View style={styles.destHeaderRow}>
+            <View style={[styles.destIconBadge, { backgroundColor: colors.mBlueMuted, borderColor: colors.mBlue }]}>
+              <FontAwesome6 name="location-dot" size={16} color={colors.mBlue} />
+            </View>
+            <View style={styles.destHeaderContent}>
+              <View style={[styles.destBadgePill, { backgroundColor: colors.mBlueMuted }]}>
+                <Text style={[styles.destBadgeText, { color: colors.mBlue }]}>
+                  {trip.googleMapsUrl ? t('hasCustomMapLink') : t('pinnedDestination')}
+                </Text>
+              </View>
+              <Text style={[styles.destTitleText, { color: colors.text }]} numberOfLines={1}>
+                {language === 'VIE' && trip.destination?.nameVie ? trip.destination.nameVie : (trip.destination?.name || trip.title)}
+              </Text>
+            </View>
+          </View>
+
+          {trip.destination?.address ? (
+            <Text style={[styles.destAddressText, { color: colors.textSecondary }]}>
+              {trip.destination.address}
+            </Text>
+          ) : null}
+
+          {/* Coordinates readout */}
+          {trip.destination && (
+            <View style={[styles.coordBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <FontAwesome6 name="crosshairs" size={11} color={colors.mBlue} />
+              <Text style={[styles.coordText, { color: colors.textMuted }]}>
+                {t('coordinates')}: {trip.destination.latitude.toFixed(4)}° N, {trip.destination.longitude.toFixed(4)}° E
+              </Text>
+            </View>
+          )}
+
+          {/* Direct Google Maps Link Clickable Badge */}
+          {(trip.googleMapsUrl || trip.destination?.mapUrl) && (
+            <TouchableOpacity
+              style={[styles.mapLinkBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                showToast(t('mapsNavigationNotice'), 'info');
+                openGoogleMapsLinkOrCoords(trip.googleMapsUrl || trip.destination?.mapUrl);
+              }}
+            >
+              <FontAwesome6 name="arrow-up-right-from-square" size={12} color={colors.mBlue} />
+              <Text style={[styles.mapLinkText, { color: colors.mBlue }]} numberOfLines={1}>
+                {trip.googleMapsUrl || trip.destination?.mapUrl}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* High-visibility Google Maps Navigation Button */}
+          <TouchableOpacity
+            style={styles.navGoogleBtn}
+            activeOpacity={0.85}
+            onPress={() => {
+              showToast(t('mapsNavigationNotice'), 'info');
+              openGoogleMapsLinkOrCoords(
+                trip.googleMapsUrl || trip.destination?.mapUrl,
+                trip.destination?.latitude,
+                trip.destination?.longitude,
+                trip.destination?.name
+              );
+            }}
+          >
+            <LinearGradient
+              colors={['#1A73E8', '#1557B0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.navGoogleBtnGradient}
+            >
+              <FontAwesome6 name={trip.googleMapsUrl ? 'arrow-up-right-from-square' : 'route'} size={15} color="#FFFFFF" />
+              <Text style={styles.navGoogleBtnText}>
+                {trip.googleMapsUrl ? t('openMapLink') : t('navigateWithGoogleMaps')}
+              </Text>
+              <AntDesign name="arrow-right" size={14} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Total Budget Summary Widget */}
-      <View style={styles.budgetWidget}>
-        <View>
-          <Text style={styles.budgetLabel}>{t('estTotalTripBudget')}</Text>
-          <Text style={styles.budgetValue}>
+      <View style={[styles.budgetWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.budgetLeft}>
+          <Text style={[styles.budgetLabel, { color: colors.textMuted }]} numberOfLines={1}>{t('estTotalTripBudget')}</Text>
+          <Text style={[styles.budgetValue, { color: colors.text }]} numberOfLines={1}>
             {trip.totalCostVnd}{' '}
-            <Text style={styles.budgetUsd}>({trip.totalCostUsd})</Text>
+            <Text style={[styles.budgetUsd, { color: colors.textMuted }]}>({trip.totalCostUsd})</Text>
           </Text>
         </View>
         <TouchableOpacity
@@ -178,7 +265,7 @@ export default function TripDetailScreen({
           onPress={() => showToast(t('joinSlotRequested'), 'success')}
         >
           <LinearGradient
-            colors={['#FF5E1A', '#FF9F1C']}
+            colors={colors.mGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.joinSlotGradient}
@@ -191,20 +278,20 @@ export default function TripDetailScreen({
       {/* Plan: Pit Stops (Eat & Drink) */}
       <View style={styles.planSection}>
         <View style={styles.planSectionHeader}>
-          <FontAwesome6 name="utensils" size={13} color="#FF5E1A" />
-          <Text style={styles.planSectionTitle}>{t('plannedPitStops')}</Text>
+          <FontAwesome6 name="utensils" size={13} color={colors.mBlue} />
+          <Text style={[styles.planSectionTitle, { color: colors.text }]}>{t('plannedPitStops')}</Text>
         </View>
         <View style={styles.planItemsList}>
           {trip.eatDrink.map((item, idx) => (
-            <View key={idx} style={styles.planItemCard}>
+            <View key={idx} style={[styles.planItemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View>
-                <Text style={styles.planItemName}>{item.name}</Text>
-                <Text style={styles.planItemSub}>
+                <Text style={[styles.planItemName, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.planItemSub, { color: colors.textMuted }]}>
                   {item.type} • {item.rating}
                 </Text>
               </View>
-              <View style={styles.costBadge}>
-                <Text style={styles.costBadgeText}>{item.cost}</Text>
+              <View style={[styles.costBadge, { backgroundColor: colors.mBlueMuted }]}>
+                <Text style={[styles.costBadgeText, { color: colors.mBlue }]}>{item.cost}</Text>
               </View>
             </View>
           ))}
@@ -214,20 +301,20 @@ export default function TripDetailScreen({
       {/* Plan: Destinations & Landmarks */}
       <View style={styles.planSection}>
         <View style={styles.planSectionHeader}>
-          <FontAwesome6 name="camera-retro" size={13} color="#38BDF8" />
-          <Text style={styles.planSectionTitle}>{t('destinationsLandmarks')}</Text>
+          <FontAwesome6 name="camera-retro" size={13} color={colors.mRed} />
+          <Text style={[styles.planSectionTitle, { color: colors.text }]}>{t('destinationsLandmarks')}</Text>
         </View>
         <View style={styles.planItemsList}>
           {trip.landmarks.map((landmark, idx) => (
-            <View key={idx} style={styles.planItemCard}>
+            <View key={idx} style={[styles.planItemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View>
-                <Text style={styles.planItemName}>{landmark.name}</Text>
-                <Text style={styles.planItemSub}>
+                <Text style={[styles.planItemName, { color: colors.text }]}>{landmark.name}</Text>
+                <Text style={[styles.planItemSub, { color: colors.textMuted }]}>
                   {t('stopDuration')}: {landmark.stopTime}
                 </Text>
               </View>
-              <View style={styles.feeBadge}>
-                <Text style={styles.feeBadgeText}>{landmark.fee}</Text>
+              <View style={[styles.feeBadge, { backgroundColor: colors.surfaceElevated }]}>
+                <Text style={[styles.feeBadgeText, { color: colors.textSecondary }]}>{landmark.fee}</Text>
               </View>
             </View>
           ))}
@@ -237,18 +324,18 @@ export default function TripDetailScreen({
       {/* Plan: Lodging & Stays */}
       <View style={styles.planSection}>
         <View style={styles.planSectionHeader}>
-          <FontAwesome6 name="hotel" size={13} color="#C084FC" />
-          <Text style={styles.planSectionTitle}>{t('staysHotelLodging')}</Text>
+          <FontAwesome6 name="hotel" size={13} color={colors.mBlue} />
+          <Text style={[styles.planSectionTitle, { color: colors.text }]}>{t('staysHotelLodging')}</Text>
         </View>
         <View style={styles.planItemsList}>
           {trip.lodging.map((lodge, idx) => (
-            <View key={idx} style={styles.planItemCard}>
+            <View key={idx} style={[styles.planItemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View>
-                <Text style={styles.planItemName}>{lodge.name}</Text>
-                <Text style={styles.planItemSub}>{lodge.price}</Text>
+                <Text style={[styles.planItemName, { color: colors.text }]}>{lodge.name}</Text>
+                <Text style={[styles.planItemSub, { color: colors.textMuted }]}>{lodge.price}</Text>
               </View>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{lodge.status}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: colors.mBlueMuted }]}>
+                <Text style={[styles.statusBadgeText, { color: colors.mBlue }]}>{lodge.status}</Text>
               </View>
             </View>
           ))}
@@ -458,6 +545,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 94, 26, 0.3)',
     borderRadius: 16,
     padding: 12,
+    gap: 8,
+  },
+  budgetLeft: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 6,
   },
   budgetLabel: {
     fontSize: 9.5,
@@ -466,7 +559,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   budgetValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#FF9F1C',
     marginTop: 2,
@@ -573,5 +666,102 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '700',
     color: '#FF5E1A',
+  },
+  destCard: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 10,
+  },
+  destHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  destIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  destHeaderContent: {
+    flex: 1,
+    gap: 2,
+  },
+  destBadgePill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  destBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  destTitleText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  destAddressText: {
+    fontSize: 10.5,
+    lineHeight: 15,
+  },
+  coordBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  coordText: {
+    fontSize: 9.5,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  navGoogleBtn: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginTop: 2,
+    shadowColor: '#1A73E8',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  navGoogleBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  navGoogleBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  mapLinkBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  mapLinkText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    flex: 1,
+    textDecorationLine: 'underline',
   },
 });

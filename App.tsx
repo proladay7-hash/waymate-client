@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AntDesign from '@expo/vector-icons/AntDesign';
 
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import { LocationProvider } from './src/context/LocationContext';
 import TopBar, { ScreenId } from './src/components/TopBar';
@@ -22,9 +23,10 @@ import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
 import { initialVehicles, Vehicle } from './src/data/mockVehicles';
+import { mockTripsData, TripData } from './src/data/mockTrips';
 import { UserDto, setAuthToken } from './src/services/authApi';
 
-type ToastType = 'success' | 'info';
+export type ToastType = 'success' | 'info' | 'error';
 
 interface ToastState {
   visible: boolean;
@@ -35,6 +37,7 @@ interface ToastState {
 function MainApp() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
+  const { colors, isDark, toggleTheme } = useTheme();
 
   // Authentication State: DEFAULT FIRST COME IN IS LOGIN PAGE
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -43,6 +46,9 @@ function MainApp() {
 
   // Vehicles & Maintenance Tracker State
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+
+  // Trips Feed & Google Maps Destinations State
+  const [trips, setTrips] = useState<TripData[]>(mockTripsData);
 
   // Selected Trip & Saved favorites
   const [selectedTripId, setSelectedTripId] = useState<string>('trip-1');
@@ -127,6 +133,12 @@ function MainApp() {
     }
   };
 
+  // Trips management & Add New Trip
+  const handleAddTrip = (newTrip: TripData) => {
+    setTrips((prev) => [newTrip, ...prev]);
+    showToast(t('tripPostedSuccess'), 'success');
+  };
+
   const handleSelectTrip = (tripId: string) => {
     setSelectedTripId(tripId);
     setCurrentScreen('trip');
@@ -144,14 +156,14 @@ function MainApp() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      {/* Ambient Glow Background Effects */}
+      {/* BMW S1000RR Ambient Glow Background Effects */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <View style={[styles.ambientGlow, styles.glowOrange]} />
-        <View style={[styles.ambientGlow, styles.glowAmber]} />
-        <View style={[styles.ambientGlow, styles.glowIndigo]} />
+        <View style={[styles.ambientGlow, styles.glowBlue, { backgroundColor: colors.ambientGlowBlue }]} />
+        <View style={[styles.ambientGlow, styles.glowRed, { backgroundColor: colors.ambientGlowRed }]} />
+        <View style={[styles.ambientGlow, styles.glowNavy, { backgroundColor: colors.ambientGlowNavy }]} />
       </View>
 
       {/* Header Bar */}
@@ -161,6 +173,7 @@ function MainApp() {
         onBack={handleBack}
         isLoggedIn={isLoggedIn}
         onLogout={handleLogout}
+        showToast={showToast}
       />
 
       {/* Screen Body - Exactly 1 page visible at a time */}
@@ -184,6 +197,8 @@ function MainApp() {
         {/* Authenticated Screens */}
         {isLoggedIn && currentScreen === 'home' && (
           <HomeScreen
+            trips={trips}
+            onAddTrip={handleAddTrip}
             onSelectTrip={handleSelectTrip}
             savedTripIds={savedTripIds}
             onToggleSaveTrip={handleToggleSaveTrip}
@@ -194,6 +209,7 @@ function MainApp() {
         {isLoggedIn && currentScreen === 'trip' && (
           <TripDetailScreen
             tripId={selectedTripId}
+            trips={trips}
             onBack={() => setCurrentScreen('home')}
             savedTripIds={savedTripIds}
             onToggleSaveTrip={handleToggleSaveTrip}
@@ -214,12 +230,14 @@ function MainApp() {
         {isLoggedIn && currentScreen === 'profile' && (
           <ProfileScreen
             currentUser={currentUser}
+            trips={trips}
             onNavigateToTrip={handleSelectTrip}
             onNavigateToVehicles={() => setCurrentScreen('vehicles')}
             onNavigateToChangePwd={() => setCurrentScreen('changepwd')}
             onLogout={handleLogout}
             savedTripIds={savedTripIds}
             vehicles={vehicles}
+            showToast={showToast}
           />
         )}
 
@@ -262,19 +280,22 @@ function MainApp() {
           <View
             style={[
               styles.toastBubble,
-              toast.type === 'success' ? styles.toastSuccess : styles.toastInfo,
+              {
+                backgroundColor: colors.surfaceElevated,
+                borderColor: toast.type === 'success' ? colors.mBlue : colors.mRed,
+              },
             ]}
           >
             <AntDesign
               name={toast.type === 'success' ? 'check-circle' : 'info-circle'}
               size={15}
-              color={toast.type === 'success' ? '#34D399' : '#FF9F1C'}
+              color={toast.type === 'success' ? colors.mBlue : colors.mRed}
             />
-            <Text style={styles.toastMessage} numberOfLines={2}>
+            <Text style={[styles.toastMessage, { color: colors.text }]} numberOfLines={2}>
               {toast.message}
             </Text>
             <TouchableOpacity onPress={hideToast} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <AntDesign name="close" size={13} color="#94A3B8" />
+              <AntDesign name="close" size={13} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -286,11 +307,13 @@ function MainApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <LanguageProvider>
-        <LocationProvider>
-          <MainApp />
-        </LocationProvider>
-      </LanguageProvider>
+      <ThemeProvider>
+        <LanguageProvider>
+          <LocationProvider>
+            <MainApp />
+          </LocationProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -298,35 +321,31 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0B0F19',
   },
   bodyContainer: {
     flex: 1,
   },
   ambientGlow: {
     position: 'absolute',
-    borderRadius: 200,
+    borderRadius: 220,
   },
-  glowOrange: {
-    width: 300,
-    height: 300,
-    top: -100,
-    left: -100,
-    backgroundColor: 'rgba(255, 94, 26, 0.16)',
-  },
-  glowAmber: {
-    width: 280,
-    height: 280,
-    top: '40%',
-    right: -100,
-    backgroundColor: 'rgba(255, 159, 28, 0.12)',
-  },
-  glowIndigo: {
+  glowBlue: {
     width: 320,
     height: 320,
-    bottom: -100,
-    left: '20%',
-    backgroundColor: 'rgba(79, 70, 229, 0.14)',
+    top: -100,
+    left: -100,
+  },
+  glowRed: {
+    width: 290,
+    height: 290,
+    top: '38%',
+    right: -100,
+  },
+  glowNavy: {
+    width: 330,
+    height: 330,
+    bottom: -110,
+    left: '15%',
   },
   toastContainer: {
     position: 'absolute',
@@ -343,25 +362,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.96)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 10,
     maxWidth: 420,
     width: '100%',
   },
-  toastSuccess: {
-    borderColor: 'rgba(52, 211, 153, 0.4)',
-  },
-  toastInfo: {
-    borderColor: 'rgba(255, 159, 28, 0.4)',
-  },
   toastMessage: {
     flex: 1,
     fontSize: 12,
     fontWeight: '600',
-    color: '#F8FAFC',
   },
 });

@@ -5,6 +5,7 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
 import { useUserLocation } from '../context/LocationContext';
+import { useTheme } from '../context/ThemeContext';
 
 export type ScreenId = 'login' | 'forgot' | 'home' | 'trip' | 'vehicles' | 'profile' | 'changepwd';
 
@@ -14,6 +15,7 @@ interface TopBarProps {
   onBack?: () => void;
   isLoggedIn: boolean;
   onLogout?: () => void;
+  showToast?: (message: string, type?: 'success' | 'info') => void;
 }
 
 export default function TopBar({
@@ -21,9 +23,11 @@ export default function TopBar({
   onBack,
   isLoggedIn,
   onLogout,
+  showToast,
 }: TopBarProps) {
   const { language, setLanguage, unit, toggleUnit, t } = useLanguage();
   const { permissionStatus, requestLocationPermission } = useUserLocation();
+  const { colors, isDark, toggleTheme } = useTheme();
 
   const isSubScreen = currentScreen === 'trip' || currentScreen === 'forgot' || currentScreen === 'changepwd';
 
@@ -41,7 +45,7 @@ export default function TopBar({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={styles.topRow}>
         {/* Left: Back button if sub-screen, else Brand Logo & Title */}
         {isSubScreen ? (
@@ -50,15 +54,15 @@ export default function TopBar({
             onPress={onBack}
             activeOpacity={0.7}
           >
-            <AntDesign name="arrow-left" size={17} color="#FFFFFF" />
-            <Text style={styles.subScreenTitle} numberOfLines={1} ellipsizeMode="tail">
+            <AntDesign name="arrow-left" size={17} color={colors.text} />
+            <Text style={[styles.subScreenTitle, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
               {getSubScreenTitle()}
             </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.brandContainer}>
             <LinearGradient
-              colors={['#FF5E1A', '#FF9F1C']}
+              colors={colors.mGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.logoBadge}
@@ -66,23 +70,53 @@ export default function TopBar({
               <FontAwesome6 name="route" size={13} color="#FFFFFF" />
             </LinearGradient>
             <View style={styles.brandTextWrapper}>
-              <Text style={styles.brandTitle} numberOfLines={1}>
+              <Text style={[styles.brandTitle, { color: colors.text }]} numberOfLines={1}>
                 {t('appTitle')}
               </Text>
-              <Text style={styles.brandSubtitle} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
                 {t('appSubtitle')}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Right side controls: GPS Status, Language switcher, Unit toggle, optional Logout */}
+        {/* Right side controls: Theme switch, GPS Status, Language switcher, Unit toggle, optional Logout */}
         <View style={styles.actionsRow}>
+          {/* Dark / Light Theme Toggle Button */}
+          <TouchableOpacity
+            style={[
+              styles.themeBtn,
+              {
+                backgroundColor: isDark ? 'rgba(0, 163, 224, 0.15)' : 'rgba(0, 102, 177, 0.12)',
+                borderColor: isDark ? 'rgba(0, 163, 224, 0.4)' : 'rgba(0, 102, 177, 0.35)',
+              },
+            ]}
+            onPress={() => {
+              toggleTheme();
+              if (showToast) {
+                showToast(
+                  `${t('themeSwitched')} ${!isDark ? t('themeDark') : t('themeLight')} 🏁`,
+                  'info'
+                );
+              }
+            }}
+            activeOpacity={0.75}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <AntDesign
+              name={isDark ? 'moon' : 'sun'}
+              size={12}
+              color={isDark ? '#00A3E0' : '#E20613'}
+            />
+          </TouchableOpacity>
+
           {/* GPS Location Button */}
           <TouchableOpacity
             style={[
               styles.gpsBtn,
-              permissionStatus === 'granted' ? styles.gpsBtnActive : styles.gpsBtnOff,
+              permissionStatus === 'granted'
+                ? { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.35)' }
+                : { backgroundColor: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.35)' },
             ]}
             onPress={() => requestLocationPermission()}
             activeOpacity={0.8}
@@ -96,41 +130,32 @@ export default function TopBar({
             <Text
               style={[
                 styles.gpsBtnText,
-                permissionStatus === 'granted' ? styles.gpsBtnTextActive : styles.gpsBtnTextOff,
+                { color: permissionStatus === 'granted' ? '#10B981' : '#F59E0B' },
               ]}
             >
               {permissionStatus === 'granted' ? 'GPS' : 'GPS?'}
             </Text>
           </TouchableOpacity>
 
-          {/* Language Switcher Pill [ ENG | VIE ] */}
-          <View style={styles.langPillContainer}>
-            <TouchableOpacity
-              onPress={() => setLanguage('ENG')}
-              style={[styles.langBtn, language === 'ENG' && styles.langBtnActive]}
-            >
-              <Text style={[styles.langBtnText, language === 'ENG' && styles.langBtnTextActive]}>
-                ENG
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setLanguage('VIE')}
-              style={[styles.langBtn, language === 'VIE' && styles.langBtnActive]}
-            >
-              <Text style={[styles.langBtnText, language === 'VIE' && styles.langBtnTextActive]}>
-                VIE
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {/* Compact Single Language Toggle [ 🌐 {language} ] */}
+          <TouchableOpacity
+            style={[styles.langToggleBtn, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}
+            onPress={() => setLanguage(language === 'ENG' ? 'VIE' : 'ENG')}
+            activeOpacity={0.75}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <Text style={styles.langToggleIcon}>🌐</Text>
+            <Text style={[styles.langToggleText, { color: colors.text }]}>{language}</Text>
+          </TouchableOpacity>
 
           {/* Compact Unit Switcher (KM / MI) */}
           <TouchableOpacity
-            style={styles.unitBtn}
+            style={[styles.unitBtn, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}
             onPress={toggleUnit}
             activeOpacity={0.8}
           >
-            <AntDesign name="dashboard" size={10} color="#FF5E1A" />
-            <Text style={styles.unitBtnText}>
+            <AntDesign name="dashboard" size={10} color={colors.mBlue} />
+            <Text style={[styles.unitBtnText, { color: colors.text }]}>
               {unit === 'KM' ? 'KM' : 'MI'}
             </Text>
           </TouchableOpacity>
@@ -142,7 +167,7 @@ export default function TopBar({
               onPress={onLogout}
               activeOpacity={0.8}
             >
-              <AntDesign name="logout" size={11} color="#EF4444" />
+              <AntDesign name="logout" size={11} color="#E20613" />
             </TouchableOpacity>
           )}
         </View>
@@ -153,9 +178,7 @@ export default function TopBar({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0B0F19',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
     paddingHorizontal: 12,
     paddingVertical: 8,
     zIndex: 50,
@@ -176,28 +199,27 @@ const styles = StyleSheet.create({
   },
   subScreenTitle: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#FFFFFF',
   },
   brandContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
     minWidth: 0,
-    marginRight: 6,
+    marginRight: 4,
   },
   logoBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#FF5E1A',
+    shadowColor: '#00A3E0',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
     elevation: 3,
   },
   brandTextWrapper: {
@@ -205,95 +227,76 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   brandTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
   },
   brandSubtitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: '700',
-    color: '#94A3B8',
     letterSpacing: 0.5,
   },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     flexShrink: 0,
+  },
+  themeBtn: {
+    width: 25,
+    height: 25,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   gpsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 8,
+    gap: 2.5,
+    paddingHorizontal: 5,
+    paddingVertical: 3.5,
+    borderRadius: 7,
     borderWidth: 1,
-  },
-  gpsBtnActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  gpsBtnOff: {
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   gpsBtnText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
   },
-  gpsBtnTextActive: {
-    color: '#10B981',
-  },
-  gpsBtnTextOff: {
-    color: '#F59E0B',
-  },
-  langPillContainer: {
+  langToggleBtn: {
     flexDirection: 'row',
-    backgroundColor: '#020617',
+    alignItems: 'center',
+    gap: 3,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    borderRadius: 8,
-    padding: 2,
+    borderRadius: 7,
+    paddingHorizontal: 5,
+    paddingVertical: 3.5,
   },
-  langBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+  langToggleIcon: {
+    fontSize: 9,
   },
-  langBtnActive: {
-    backgroundColor: '#FF5E1A',
-  },
-  langBtnText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#94A3B8',
-  },
-  langBtnTextActive: {
-    color: '#FFFFFF',
+  langToggleText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   unitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    gap: 2.5,
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    borderRadius: 7,
+    paddingHorizontal: 5,
+    paddingVertical: 3.5,
   },
   unitBtnText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: '700',
-    color: '#E2E8F0',
   },
   logoutBtn: {
     padding: 5,
     borderRadius: 7,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(226, 6, 19, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: 'rgba(226, 6, 19, 0.3)',
   },
 });

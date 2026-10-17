@@ -12,6 +12,7 @@ import {
 import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { Vehicle, ServiceRecord } from '../data/mockVehicles';
 
 interface VehiclesScreenProps {
@@ -30,6 +31,7 @@ export default function VehiclesScreen({
   showToast,
 }: VehiclesScreenProps) {
   const { t, formatDistance } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   // Add Vehicle Modal state
   const [isAddVehModalOpen, setIsAddVehModalOpen] = useState(false);
@@ -181,19 +183,19 @@ export default function VehiclesScreen({
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
       {/* Top Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitleWrapper}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{t('myVehicles')}</Text>
-          <Text style={styles.headerSub} numberOfLines={1} ellipsizeMode="tail">{t('vehiclesSubtitle')}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>{t('myVehicles')}</Text>
+          <Text style={[styles.headerSub, { color: colors.textMuted }]} numberOfLines={1} ellipsizeMode="tail">{t('vehiclesSubtitle')}</Text>
         </View>
 
         <TouchableOpacity
-          style={styles.addVehBtn}
+          style={[styles.addVehBtn, { backgroundColor: colors.mBlue, shadowColor: colors.mBlue }]}
           onPress={() => setIsAddVehModalOpen(true)}
           activeOpacity={0.8}
         >
@@ -204,11 +206,11 @@ export default function VehiclesScreen({
 
       {/* Vehicles List */}
       {vehicles.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <AntDesign name="car" size={32} color="#475569" />
-          <Text style={styles.emptyText}>{t('noVehiclesYet')}</Text>
+        <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <AntDesign name="car" size={32} color={colors.textMuted} />
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('noVehiclesYet')}</Text>
           <TouchableOpacity
-            style={styles.emptyAddBtn}
+            style={[styles.emptyAddBtn, { backgroundColor: colors.mBlue }]}
             onPress={() => setIsAddVehModalOpen(true)}
           >
             <Text style={styles.emptyAddBtnText}>{t('addVehicle')}</Text>
@@ -222,20 +224,20 @@ export default function VehiclesScreen({
           const isWarning = remainingKm <= 500 && remainingKm > 0;
 
           return (
-            <View key={veh.id} style={styles.vehicleCard}>
+            <View key={veh.id} style={[styles.vehicleCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {/* Vehicle Title & Badge */}
               <View style={styles.cardHeader}>
                 <View style={styles.vehTitleRow}>
-                  <View style={styles.vehTypeIcon}>
+                  <View style={[styles.vehTypeIcon, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     {veh.type === 'bike' ? (
-                      <FontAwesome6 name="motorcycle" size={15} color="#FF5E1A" />
+                      <FontAwesome6 name="motorcycle" size={15} color={colors.mBlue} />
                     ) : (
-                      <AntDesign name="car" size={16} color="#00F2FE" />
+                      <AntDesign name="car" size={16} color={colors.mRed} />
                     )}
                   </View>
                   <View style={styles.vehTextWrapper}>
-                    <Text style={styles.vehName} numberOfLines={1}>{veh.name}</Text>
-                    <Text style={styles.vehPlate} numberOfLines={1} ellipsizeMode="tail">
+                    <Text style={[styles.vehName, { color: colors.text }]} numberOfLines={1}>{veh.name}</Text>
+                    <Text style={[styles.vehPlate, { color: colors.textMuted }]} numberOfLines={1} ellipsizeMode="tail">
                       {veh.brand} • {veh.plateNumber} • {veh.year}
                     </Text>
                   </View>
@@ -247,25 +249,25 @@ export default function VehiclesScreen({
                   style={styles.deleteBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <AntDesign name="delete" size={14} color="#EF4444" />
+                  <AntDesign name="delete" size={14} color={colors.danger} />
                 </TouchableOpacity>
               </View>
 
               {/* Current ODO Banner */}
-              <View style={styles.odoBanner}>
+              <View style={[styles.odoBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.odoLeft}>
-                  <AntDesign name="dashboard" size={14} color="#CBD5E1" />
-                  <Text style={styles.odoLabel}>{t('currentOdo')}</Text>
+                  <AntDesign name="dashboard" size={14} color={colors.textMuted} />
+                  <Text style={[styles.odoLabel, { color: colors.textMuted }]}>{t('currentOdo')}</Text>
                 </View>
-                <Text style={styles.odoValue}>{formatDistance(veh.currentOdoKm)}</Text>
+                <Text style={[styles.odoValue, { color: colors.mBlue }]}>{formatDistance(veh.currentOdoKm)}</Text>
               </View>
 
               {/* Oil Maintenance Status Card */}
-              <View style={styles.oilSection}>
+              <View style={[styles.oilSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={styles.oilHeaderRow}>
                   <View style={styles.oilTitleRow}>
-                    <FontAwesome6 name="oil-can" size={13} color="#FF9F1C" />
-                    <Text style={styles.oilSectionTitle}>{t('lastOilChange')}</Text>
+                    <FontAwesome6 name="oil-can" size={13} color={colors.mBlue} />
+                    <Text style={[styles.oilSectionTitle, { color: colors.text }]}>{t('lastOilChange')}</Text>
                   </View>
 
                   <View
@@ -281,16 +283,16 @@ export default function VehiclesScreen({
                     <AntDesign
                       name={isDue ? 'warning' : 'check-circle'}
                       size={10}
-                      color={isDue ? '#EF4444' : isWarning ? '#FBBF24' : '#34D399'}
+                      color={isDue ? colors.danger : isWarning ? colors.warning : colors.success}
                     />
                     <Text
                       style={[
                         styles.oilStatusBadgeText,
                         isDue
-                          ? { color: '#EF4444' }
+                          ? { color: colors.danger }
                           : isWarning
-                          ? { color: '#FBBF24' }
-                          : { color: '#34D399' },
+                          ? { color: colors.warning }
+                          : { color: colors.success },
                       ]}
                     >
                       {isDue ? t('oilStatusDue') : t('oilStatusGood')}
@@ -299,21 +301,21 @@ export default function VehiclesScreen({
                 </View>
 
                 {/* Oil Telemetry Details */}
-                <View style={styles.oilGrid}>
+                <View style={[styles.oilGrid, { backgroundColor: colors.cardAlt }]}>
                   <View style={styles.oilGridItem}>
-                    <Text style={styles.oilGridLabel}>{t('oilChangeDate')}</Text>
-                    <Text style={styles.oilGridValue}>{veh.lastOilDate}</Text>
+                    <Text style={[styles.oilGridLabel, { color: colors.textMuted }]}>{t('oilChangeDate')}</Text>
+                    <Text style={[styles.oilGridValue, { color: colors.text }]}>{veh.lastOilDate}</Text>
                   </View>
                   <View style={styles.oilGridItem}>
-                    <Text style={styles.oilGridLabel}>{t('oilChangeOdo')}</Text>
-                    <Text style={styles.oilGridValue}>{formatDistance(veh.lastOilOdoKm)}</Text>
+                    <Text style={[styles.oilGridLabel, { color: colors.textMuted }]}>{t('oilChangeOdo')}</Text>
+                    <Text style={[styles.oilGridValue, { color: colors.text }]}>{formatDistance(veh.lastOilOdoKm)}</Text>
                   </View>
                   <View style={styles.oilGridItem}>
-                    <Text style={styles.oilGridLabel}>{t('nextOilDue')}</Text>
+                    <Text style={[styles.oilGridLabel, { color: colors.textMuted }]}>{t('nextOilDue')}</Text>
                     <Text
                       style={[
                         styles.oilGridValue,
-                        isDue ? { color: '#EF4444' } : { color: '#FF9F1C' },
+                        isDue ? { color: colors.danger } : { color: colors.mBlue },
                       ]}
                     >
                       {formatDistance(nextDueKm)}
@@ -323,14 +325,14 @@ export default function VehiclesScreen({
 
                 {/* Distance Remaining Notice */}
                 <View style={styles.oilRemainingRow}>
-                  <Text style={styles.oilRemainingText}>
+                  <Text style={[styles.oilRemainingText, { color: colors.textSecondary }]}>
                     {isDue ? (
-                      <Text style={{ color: '#EF4444', fontWeight: '800' }}>
+                      <Text style={{ color: colors.danger, fontWeight: '800' }}>
                         Overdue by {Math.abs(remainingKm)} KM!
                       </Text>
                     ) : (
                       <>
-                        <Text style={{ color: '#34D399', fontWeight: '800' }}>
+                        <Text style={{ color: colors.success, fontWeight: '800' }}>
                           {remainingKm} KM
                         </Text>{' '}
                         {t('remainingKm')}
@@ -340,7 +342,7 @@ export default function VehiclesScreen({
 
                   {/* Quick Replace Oil Log Button */}
                   <TouchableOpacity
-                    style={styles.replaceOilBtn}
+                    style={[styles.replaceOilBtn, { backgroundColor: colors.mBlue }]}
                     onPress={() => {
                       setQuickOilVeh(veh);
                       setQuickOilOdo(veh.currentOdoKm.toString());
@@ -355,15 +357,15 @@ export default function VehiclesScreen({
               </View>
 
               {/* Service & Maintenance History */}
-              <View style={styles.serviceSection}>
+              <View style={[styles.serviceSection, { borderTopColor: colors.border }]}>
                 <View style={styles.serviceSectionHeader}>
                   <View style={styles.serviceTitleRow}>
-                    <AntDesign name="file-text" size={13} color="#38BDF8" />
-                    <Text style={styles.serviceSectionTitle}>{t('serviceHistory')}</Text>
+                    <AntDesign name="file-text" size={13} color={colors.mBlue} />
+                    <Text style={[styles.serviceSectionTitle, { color: colors.textSecondary }]}>{t('serviceHistory')}</Text>
                   </View>
 
                   <TouchableOpacity
-                    style={styles.addRecordBtn}
+                    style={[styles.addRecordBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.mBlue }]}
                     onPress={() => {
                       setSelectedVehForService(veh);
                       setNewServiceOdo(veh.currentOdoKm.toString());
@@ -371,26 +373,26 @@ export default function VehiclesScreen({
                     }}
                     activeOpacity={0.8}
                   >
-                    <AntDesign name="plus" size={10} color="#FF9F1C" />
-                    <Text style={styles.addRecordBtnText}>{t('addServiceRecord')}</Text>
+                    <AntDesign name="plus" size={10} color={colors.mBlue} />
+                    <Text style={[styles.addRecordBtnText, { color: colors.mBlue }]}>{t('addServiceRecord')}</Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Service History Records */}
                 <View style={styles.recordsList}>
                   {veh.serviceHistory.map((srv) => (
-                    <View key={srv.id} style={styles.recordItem}>
+                    <View key={srv.id} style={[styles.recordItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                       <View style={styles.recordMain}>
-                        <Text style={styles.recordTitle}>{srv.serviceItem}</Text>
-                        <Text style={styles.recordSub}>
+                        <Text style={[styles.recordTitle, { color: colors.text }]}>{srv.serviceItem}</Text>
+                        <Text style={[styles.recordSub, { color: colors.textMuted }]}>
                           {srv.date} • {formatDistance(srv.odoKm)}
                         </Text>
                         {srv.notes ? (
-                          <Text style={styles.recordNotes}>{srv.notes}</Text>
+                          <Text style={[styles.recordNotes, { color: colors.textMuted }]}>{srv.notes}</Text>
                         ) : null}
                       </View>
-                      <View style={styles.recordCostBadge}>
-                        <Text style={styles.recordCostText}>{srv.costVnd}</Text>
+                      <View style={[styles.recordCostBadge, { backgroundColor: colors.mBlueMuted }]}>
+                        <Text style={[styles.recordCostText, { color: colors.mBlue }]}>{srv.costVnd}</Text>
                       </View>
                     </View>
                   ))}
@@ -409,11 +411,11 @@ export default function VehiclesScreen({
         onRequestClose={() => setIsAddVehModalOpen(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('newVehicleTitle')}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('newVehicleTitle')}</Text>
               <TouchableOpacity onPress={() => setIsAddVehModalOpen(false)}>
-                <AntDesign name="close" size={18} color="#94A3B8" />
+                <AntDesign name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -422,19 +424,21 @@ export default function VehiclesScreen({
               <TouchableOpacity
                 style={[
                   styles.typeBtn,
-                  newVehType === 'bike' && styles.typeBtnActive,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  newVehType === 'bike' && { backgroundColor: colors.mBlue, borderColor: colors.mBlue },
                 ]}
                 onPress={() => setNewVehType('bike')}
               >
                 <FontAwesome6
                   name="motorcycle"
                   size={14}
-                  color={newVehType === 'bike' ? '#FFFFFF' : '#94A3B8'}
+                  color={newVehType === 'bike' ? '#FFFFFF' : colors.textMuted}
                 />
                 <Text
                   style={[
                     styles.typeBtnText,
-                    newVehType === 'bike' && styles.typeBtnTextActive,
+                    { color: newVehType === 'bike' ? '#FFFFFF' : colors.textMuted },
+                    newVehType === 'bike' && { fontWeight: '800' },
                   ]}
                 >
                   {t('bike')}
@@ -444,19 +448,21 @@ export default function VehiclesScreen({
               <TouchableOpacity
                 style={[
                   styles.typeBtn,
-                  newVehType === 'car' && styles.typeBtnActive,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  newVehType === 'car' && { backgroundColor: colors.mBlue, borderColor: colors.mBlue },
                 ]}
                 onPress={() => setNewVehType('car')}
               >
                 <AntDesign
                   name="car"
                   size={15}
-                  color={newVehType === 'car' ? '#FFFFFF' : '#94A3B8'}
+                  color={newVehType === 'car' ? '#FFFFFF' : colors.textMuted}
                 />
                 <Text
                   style={[
                     styles.typeBtnText,
-                    newVehType === 'car' && styles.typeBtnTextActive,
+                    { color: newVehType === 'car' ? '#FFFFFF' : colors.textMuted },
+                    newVehType === 'car' && { fontWeight: '800' },
                   ]}
                 >
                   {t('car')}
@@ -467,11 +473,11 @@ export default function VehiclesScreen({
             {/* Inputs */}
             <View style={styles.modalForm}>
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('vehicleName')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('vehicleName')}</Text>
                 <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. BMW R1250 GS or Honda Civic"
-                  placeholderTextColor="#64748B"
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. Superbike 1000 or Civic"
+                  placeholderTextColor={colors.inputPlaceholder}
                   value={newVehName}
                   onChangeText={setNewVehName}
                 />
@@ -479,22 +485,22 @@ export default function VehiclesScreen({
 
               <View style={styles.modalRowInputs}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>{t('brand')}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('brand')}</Text>
                   <TextInput
-                    style={styles.modalInput}
-                    placeholder="e.g. BMW, Honda"
-                    placeholderTextColor="#64748B"
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                    placeholder="e.g. Honda, Yamaha"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={newVehBrand}
                     onChangeText={setNewVehBrand}
                   />
                 </View>
 
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>{t('plateNumber')}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('plateNumber')}</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="e.g. 59-A1 999.88"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={newVehPlate}
                     onChangeText={setNewVehPlate}
                   />
@@ -503,11 +509,11 @@ export default function VehiclesScreen({
 
               <View style={styles.modalRowInputs}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>{t('currentOdo')}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('currentOdo')}</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="e.g. 15000"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     keyboardType="number-pad"
                     value={newVehOdo}
                     onChangeText={setNewVehOdo}
@@ -515,11 +521,11 @@ export default function VehiclesScreen({
                 </View>
 
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>{t('year')}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('year')}</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="2024"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     keyboardType="number-pad"
                     value={newVehYear}
                     onChangeText={setNewVehYear}
@@ -531,14 +537,14 @@ export default function VehiclesScreen({
             {/* Actions */}
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => setIsAddVehModalOpen(false)}
               >
-                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+                <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>{t('cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, { backgroundColor: colors.mBlue }]}
                 onPress={handleSaveNewVehicle}
               >
                 <Text style={styles.saveBtnText}>{t('save')}</Text>
@@ -556,24 +562,24 @@ export default function VehiclesScreen({
         onRequestClose={() => setIsQuickOilModalOpen(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('replaceOilNow')}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('replaceOilNow')}</Text>
               <TouchableOpacity onPress={() => setIsQuickOilModalOpen(false)}>
-                <AntDesign name="close" size={18} color="#94A3B8" />
+                <AntDesign name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitleText}>
-              Vehicle: <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{quickOilVeh?.name}</Text>
+            <Text style={[styles.modalSubtitleText, { color: colors.textMuted }]}>
+              Vehicle: <Text style={{ color: colors.text, fontWeight: '800' }}>{quickOilVeh?.name}</Text>
             </Text>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Current ODO (KM) at Oil Replacement</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Current ODO (KM) at Oil Replacement</Text>
               <TextInput
-                style={styles.modalInput}
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                 placeholder="e.g. 15420"
-                placeholderTextColor="#64748B"
+                placeholderTextColor={colors.inputPlaceholder}
                 keyboardType="number-pad"
                 value={quickOilOdo}
                 onChangeText={setQuickOilOdo}
@@ -582,14 +588,14 @@ export default function VehiclesScreen({
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => setIsQuickOilModalOpen(false)}
               >
-                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+                <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>{t('cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, { backgroundColor: colors.mBlue }]}
                 onPress={handleConfirmQuickOil}
               >
                 <Text style={styles.saveBtnText}>{t('save')}</Text>
@@ -607,25 +613,25 @@ export default function VehiclesScreen({
         onRequestClose={() => setIsAddServiceModalOpen(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('addServiceRecord')}</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('addServiceRecord')}</Text>
               <TouchableOpacity onPress={() => setIsAddServiceModalOpen(false)}>
-                <AntDesign name="close" size={18} color="#94A3B8" />
+                <AntDesign name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitleText}>
-              Vehicle: <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{selectedVehForService?.name}</Text>
+            <Text style={[styles.modalSubtitleText, { color: colors.textMuted }]}>
+              Vehicle: <Text style={{ color: colors.text, fontWeight: '800' }}>{selectedVehForService?.name}</Text>
             </Text>
 
             <View style={styles.modalForm}>
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('serviceItem')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('serviceItem')}</Text>
                 <TextInput
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                   placeholder="e.g. Brake Fluid Flush, New Tires"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.inputPlaceholder}
                   value={newServiceItem}
                   onChangeText={setNewServiceItem}
                 />
@@ -633,11 +639,11 @@ export default function VehiclesScreen({
 
               <View style={styles.modalRowInputs}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>ODO (KM)</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>ODO (KM)</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="e.g. 15420"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     keyboardType="number-pad"
                     value={newServiceOdo}
                     onChangeText={setNewServiceOdo}
@@ -645,11 +651,11 @@ export default function VehiclesScreen({
                 </View>
 
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>{t('cost')}</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('cost')}</Text>
                   <TextInput
-                    style={styles.modalInput}
+                    style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                     placeholder="e.g. 850,000"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={newServiceCost}
                     onChangeText={setNewServiceCost}
                   />
@@ -657,11 +663,11 @@ export default function VehiclesScreen({
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('notes')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('notes')}</Text>
                 <TextInput
-                  style={[styles.modalInput, { height: 60 }]}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text, height: 60 }]}
                   placeholder="Service center, brand of parts used, etc."
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor={colors.inputPlaceholder}
                   multiline
                   value={newServiceNotes}
                   onChangeText={setNewServiceNotes}
@@ -671,14 +677,14 @@ export default function VehiclesScreen({
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => setIsAddServiceModalOpen(false)}
               >
-                <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+                <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>{t('cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.saveBtn}
+                style={[styles.saveBtn, { backgroundColor: colors.mBlue }]}
                 onPress={handleSaveServiceRecord}
               >
                 <Text style={styles.saveBtnText}>{t('save')}</Text>
@@ -864,11 +870,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   oilTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
   },
   oilSectionTitle: {
     fontSize: 11.5,
@@ -926,10 +936,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 2,
+    flexWrap: 'wrap',
+    gap: 6,
   },
   oilRemainingText: {
     fontSize: 10,
     color: '#CBD5E1',
+    flexShrink: 1,
   },
   replaceOilBtn: {
     flexDirection: 'row',
@@ -955,11 +968,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   serviceTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
   },
   serviceSectionTitle: {
     fontSize: 11.5,
@@ -998,6 +1015,7 @@ const styles = StyleSheet.create({
   },
   recordMain: {
     flex: 1,
+    minWidth: 0,
     marginRight: 8,
   },
   recordTitle: {

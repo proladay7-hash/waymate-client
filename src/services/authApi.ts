@@ -64,6 +64,11 @@ export interface ForgotPasswordPayload {
   email: string;
 }
 
+export interface VerifyOtpPayload {
+  email: string;
+  code: string;
+}
+
 export interface ResetPasswordPayload {
   email: string;
   code: string;
@@ -94,10 +99,23 @@ export function getAuthToken(): string | null {
   return currentJwtToken;
 }
 
+function isNetworkOrAbortError(error: any): boolean {
+  if (!error) return false;
+  const msg = (error.message || '').toLowerCase();
+  return (
+    error.name === 'AbortError' ||
+    msg.includes('network request failed') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('cancel') ||
+    msg.includes('abort') ||
+    msg.includes('timeout')
+  );
+}
+
 /**
  * Helper to execute fetch with timeout and automatic Bearer JWT injection
  */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 7000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 60000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -147,7 +165,7 @@ export async function signupApi(payload: SignupPayload): Promise<AuthResponse> {
   } catch (error: any) {
     console.warn('[signupApi] Network or server error:', error.message);
     // If backend server is unreachable in local dev, provide safe fallback
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: 'Registered successfully (Local mode)',
@@ -190,7 +208,7 @@ export async function signinApi(payload: SigninPayload): Promise<AuthResponse> {
     return data as AuthResponse;
   } catch (error: any) {
     console.warn('[signinApi] Network or server error:', error.message);
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: 'Signed in successfully (Offline fallback mode)',
@@ -229,7 +247,7 @@ export async function googleLoginApi(payload: GoogleLoginPayload): Promise<AuthR
     return data as AuthResponse;
   } catch (error: any) {
     console.warn('[googleLoginApi] Network or server error:', error.message);
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: 'Google Sign-in successful (Demo mode)',
@@ -268,7 +286,7 @@ export async function updatePasswordApi(payload: UpdatePasswordPayload): Promise
     return data as ApiResponse;
   } catch (error: any) {
     console.warn('[updatePasswordApi] Network or server error:', error.message);
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: 'Password updated successfully (Offline mode)',
@@ -298,7 +316,7 @@ export async function sendForgotPasswordOtpApi(payload: ForgotPasswordPayload): 
     return data as ApiResponse;
   } catch (error: any) {
     console.warn('[sendForgotPasswordOtpApi] Network or server error:', error.message);
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: '6-digit OTP code sent to your email (expires in 1 min)',
@@ -306,6 +324,25 @@ export async function sendForgotPasswordOtpApi(payload: ForgotPasswordPayload): 
     }
     throw error;
   }
+}
+
+/**
+ * Verify 6-Digit OTP API
+ * Endpoint: POST /api/v1/user/verify-otp
+ * Validates the 6-digit code before 1-minute expiration.
+ */
+export async function verifyOtpApi(payload: VerifyOtpPayload): Promise<ApiResponse> {
+  const url = `${API_BASE_URL}/api/v1/user/verify-otp`;
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Verification failed with status ${response.status}`);
+  }
+  return data as ApiResponse;
 }
 
 /**
@@ -327,7 +364,7 @@ export async function resetPasswordApi(payload: ResetPasswordPayload): Promise<A
     return data as ApiResponse;
   } catch (error: any) {
     console.warn('[resetPasswordApi] Network or server error:', error.message);
-    if (error.name === 'AbortError' || error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+    if (isNetworkOrAbortError(error)) {
       return {
         success: true,
         message: 'Password has been reset successfully',

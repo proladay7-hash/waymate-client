@@ -10,14 +10,14 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Image,
-  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { signupApi, signinApi, UserDto } from '../services/authApi';
-import { promptGoogleLogin, signInWithGoogleAccount } from '../services/googleAuth';
+import { promptGoogleLogin } from '../services/googleAuth';
 
 type TravelStyle = 'Motorcycle' | 'Road Trip' | 'Backpack';
 type AuthMode = 'login' | 'signup';
@@ -42,19 +42,20 @@ export default function LoginScreen({
   showToast,
 }: LoginScreenProps) {
   const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
 
   const [authMode, setAuthMode] = useState<AuthMode>('login');
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState('rider_alex@waymate.app');
-  const [loginPassword, setLoginPassword] = useState('Adventure2026!');
+  const [loginEmail, setLoginEmail] = useState('proladay7@gmail.com');
+  const [loginPassword, setLoginPassword] = useState('023345458');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(true);
 
   // Signup form state
-  const [signupName, setSignupName] = useState('Alex Rider');
-  const [signupEmail, setSignupEmail] = useState('alex.rider@waymate.app');
-  const [signupPassword, setSignupPassword] = useState('RoadTrip2026!');
+  const [signupName, setSignupName] = useState('Lam Le');
+  const [signupEmail, setSignupEmail] = useState('proladay7@gmail.com');
+  const [signupPassword, setSignupPassword] = useState('023345458');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [travelStyle, setTravelStyle] = useState<TravelStyle>('Motorcycle');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0]);
@@ -62,12 +63,6 @@ export default function LoginScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  // Google Sign-In Modal & Custom Account State
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleCustomEmail, setGoogleCustomEmail] = useState('');
-  const [googleCustomName, setGoogleCustomName] = useState('');
-  const [isCustomGoogleMode, setIsCustomGoogleMode] = useState(false);
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const handleLoginSubmit = async () => {
     if (!loginEmail.trim() || !loginPassword.trim()) {
@@ -128,61 +123,25 @@ export default function LoginScreen({
     }
   };
 
-  const handleGoogleAccountSelect = async (
-    email: string,
-    name?: string,
-    avatar?: string
-  ) => {
-    setIsGoogleSubmitting(true);
-    try {
-      const result = await signInWithGoogleAccount(email, name, avatar);
-      if (result.success && result.user) {
-        setShowGoogleModal(false);
-        showToast(
-          `${t('googleLoginSuccess')} (${result.user.name || result.user.email})`,
-          'success'
-        );
-        setTimeout(() => {
-          onLoginSuccess(result.user);
-        }, 400);
-      } else {
-        showToast(result.message || 'Google login failed', 'info');
-      }
-    } catch (err: any) {
-      showToast(err.message || 'Google authentication error', 'info');
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
-  };
-
-  const handleBrowserOAuth = async () => {
-    setIsGoogleSubmitting(true);
-    try {
-      const result = await promptGoogleLogin();
-      if (result.success && result.user) {
-        setShowGoogleModal(false);
-        showToast(`${t('googleLoginSuccess')} (${result.user.name})`, 'success');
-        setTimeout(() => {
-          onLoginSuccess(result.user);
-        }, 400);
-      } else if (result.isPolicyBlocked) {
-        showToast(
-          result.message || 'Google blocks exp:// scheme. Please select account below.',
-          'info'
-        );
-      } else {
-        showToast(result.message || 'Google login cancelled', 'info');
-      }
-    } catch (err: any) {
-      showToast(err.message || 'Google OAuth error occurred', 'info');
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
-  };
-
   const handleSocialAuth = async (provider: string) => {
     if (provider === 'Google') {
-      setShowGoogleModal(true);
+      setIsLoading(true);
+      try {
+        const result = await promptGoogleLogin();
+        if (result.success && result.user) {
+          showToast(
+            `${t('googleLoginSuccess')} (${result.user.name || result.user.email})`,
+            'success'
+          );
+          setTimeout(() => onLoginSuccess(result.user), 400);
+        } else if (!result.isCancelled) {
+          showToast(result.message || 'Google login failed', 'info');
+        }
+      } catch (err: any) {
+        showToast(err.message || 'Google authentication error', 'info');
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
     showToast(`${t('connectingVia')} ${provider}... 🚀`, 'info');
@@ -201,25 +160,27 @@ export default function LoginScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.cardContainer}>
+        <View style={[styles.cardContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* Header Branding */}
           <View style={styles.header}>
             <LinearGradient
-              colors={['#FF5E1A', '#FF9F1C', '#EF4444']}
+              colors={colors.mGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.logoGradientBorder}
             >
-              <View style={styles.logoInner}>
-                <FontAwesome6 name="route" size={24} color="#FF5E1A" />
+              <View style={[styles.logoInner, { backgroundColor: colors.surface }]}>
+                <FontAwesome6 name="route" size={24} color={colors.mBlue} />
               </View>
             </LinearGradient>
-            <Text style={styles.appName}>{t('appTitle')}</Text>
-            <Text style={styles.appTagline}>{t('findYourCrew')}</Text>
+            <View style={styles.appNameRow}>
+              <Text style={[styles.appName, { color: colors.text }]}>{t('appTitle')}</Text>
+            </View>
+            <Text style={[styles.appTagline, { color: colors.textSecondary }]}>{t('findYourCrew')}</Text>
           </View>
 
           {/* Auth Mode Toggle Switcher */}
-          <View style={styles.tabContainer}>
+          <View style={[styles.tabContainer, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}>
             <TouchableOpacity
               onPress={() => setAuthMode('login')}
               style={styles.tabTouchable}
@@ -227,7 +188,7 @@ export default function LoginScreen({
             >
               {authMode === 'login' ? (
                 <LinearGradient
-                  colors={['#FF5E1A', '#E63946']}
+                  colors={colors.blueGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.tabActiveGradient}
@@ -237,8 +198,8 @@ export default function LoginScreen({
                 </LinearGradient>
               ) : (
                 <View style={styles.tabInactive}>
-                  <AntDesign name="login" size={13} color="#94A3B8" />
-                  <Text style={styles.tabInactiveText}>{t('logIn')}</Text>
+                  <AntDesign name="login" size={13} color={colors.textMuted} />
+                  <Text style={[styles.tabInactiveText, { color: colors.textMuted }]}>{t('logIn')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -250,7 +211,7 @@ export default function LoginScreen({
             >
               {authMode === 'signup' ? (
                 <LinearGradient
-                  colors={['#FF5E1A', '#E63946']}
+                  colors={colors.blueGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.tabActiveGradient}
@@ -260,8 +221,8 @@ export default function LoginScreen({
                 </LinearGradient>
               ) : (
                 <View style={styles.tabInactive}>
-                  <AntDesign name="user-add" size={13} color="#94A3B8" />
-                  <Text style={styles.tabInactiveText}>{t('signUp')}</Text>
+                  <AntDesign name="user-add" size={13} color={colors.textMuted} />
+                  <Text style={[styles.tabInactiveText, { color: colors.textMuted }]}>{t('signUp')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -272,18 +233,19 @@ export default function LoginScreen({
             <View style={styles.formContainer}>
               {/* Email / Username */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('emailOrUsername')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('emailOrUsername')}</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'loginEmail' && styles.inputWrapperFocused,
+                    { backgroundColor: colors.inputBg, borderColor: colors.border },
+                    focusedField === 'loginEmail' && { borderColor: colors.mBlue },
                   ]}
                 >
-                  <AntDesign name="mail" size={15} color="#94A3B8" style={styles.inputLeftIcon} />
+                  <AntDesign name="mail" size={15} color={colors.textMuted} style={styles.inputLeftIcon} />
                   <TextInput
-                    style={styles.inputField}
-                    placeholder="rider@waymate.app"
-                    placeholderTextColor="#64748B"
+                    style={[styles.inputField, { color: colors.text }]}
+                    placeholder="proladay7@gmail.com"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={loginEmail}
                     onChangeText={setLoginEmail}
                     autoCapitalize="none"
@@ -291,26 +253,27 @@ export default function LoginScreen({
                     onFocus={() => setFocusedField('loginEmail')}
                     onBlur={() => setFocusedField(null)}
                   />
-                  {isLoginEmailValid ? (
-                    <AntDesign name="check-circle" size={14} color="#34D399" />
-                  ) : null}
+                  {isLoginEmailValid && (
+                    <AntDesign name="check-circle" size={15} color={colors.mBlue} />
+                  )}
                 </View>
               </View>
 
               {/* Password */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('password')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('password')}</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'loginPassword' && styles.inputWrapperFocused,
+                    { backgroundColor: colors.inputBg, borderColor: colors.border },
+                    focusedField === 'loginPassword' && { borderColor: colors.mBlue },
                   ]}
                 >
-                  <AntDesign name="lock" size={16} color="#94A3B8" style={styles.inputLeftIcon} />
+                  <AntDesign name="lock" size={16} color={colors.textMuted} style={styles.inputLeftIcon} />
                   <TextInput
-                    style={styles.inputField}
-                    placeholder="••••••••"
-                    placeholderTextColor="#64748B"
+                    style={[styles.inputField, { color: colors.text }]}
+                    placeholder="••••••••••••"
+                    placeholderTextColor={colors.inputPlaceholder}
                     secureTextEntry={!showLoginPassword}
                     value={loginPassword}
                     onChangeText={setLoginPassword}
@@ -325,7 +288,7 @@ export default function LoginScreen({
                     <AntDesign
                       name={showLoginPassword ? 'eye-invisible' : 'eye'}
                       size={16}
-                      color={showLoginPassword ? '#FF5E1A' : '#94A3B8'}
+                      color={showLoginPassword ? colors.mBlue : colors.textMuted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -337,10 +300,16 @@ export default function LoginScreen({
                 activeOpacity={0.8}
                 onPress={() => setKeepSignedIn(!keepSignedIn)}
               >
-                <View style={[styles.checkbox, keepSignedIn && styles.checkboxActive]}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    { borderColor: colors.borderStrong, backgroundColor: colors.surfaceElevated },
+                    keepSignedIn && { backgroundColor: colors.mBlue, borderColor: colors.mBlue },
+                  ]}
+                >
                   {keepSignedIn && <AntDesign name="check" size={12} color="#FFFFFF" />}
                 </View>
-                <Text style={styles.rememberMeText}>{t('keepSignedIn')}</Text>
+                <Text style={[styles.rememberMeText, { color: colors.textSecondary }]}>{t('keepSignedIn')}</Text>
               </TouchableOpacity>
 
               {/* Primary Submit Button: LOG IN */}
@@ -351,7 +320,7 @@ export default function LoginScreen({
                 disabled={isLoading}
               >
                 <LinearGradient
-                  colors={['#FF5E1A', '#EA580C', '#FF9F1C']}
+                  colors={colors.mGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.submitButtonGradient}
@@ -376,8 +345,8 @@ export default function LoginScreen({
                 activeOpacity={0.75}
                 onPress={onNavigateToForgot}
               >
-                <AntDesign name="key" size={12} color="#FF9F1C" />
-                <Text style={styles.forgotPasswordBelowText}>
+                <AntDesign name="key" size={12} color={colors.mBlue} />
+                <Text style={[styles.forgotPasswordBelowText, { color: colors.mBlue }]}>
                   {t('forgotPasswordPrompt')}
                 </Text>
               </TouchableOpacity>
@@ -388,18 +357,19 @@ export default function LoginScreen({
           {authMode === 'signup' && (
             <View style={styles.formContainer}>
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('fullName')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('fullName')}</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'signupName' && styles.inputWrapperFocused,
+                    { backgroundColor: colors.inputBg, borderColor: colors.border },
+                    focusedField === 'signupName' && { borderColor: colors.mBlue },
                   ]}
                 >
-                  <AntDesign name="user" size={15} color="#94A3B8" style={styles.inputLeftIcon} />
+                  <AntDesign name="user" size={15} color={colors.textMuted} style={styles.inputLeftIcon} />
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, { color: colors.text }]}
                     placeholder="Alex Mercer"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={signupName}
                     onChangeText={setSignupName}
                     autoCapitalize="words"
@@ -410,18 +380,19 @@ export default function LoginScreen({
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('emailAddress')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('emailAddress')}</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'signupEmail' && styles.inputWrapperFocused,
+                    { backgroundColor: colors.inputBg, borderColor: colors.border },
+                    focusedField === 'signupEmail' && { borderColor: colors.mBlue },
                   ]}
                 >
-                  <AntDesign name="mail" size={15} color="#94A3B8" style={styles.inputLeftIcon} />
+                  <AntDesign name="mail" size={15} color={colors.textMuted} style={styles.inputLeftIcon} />
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, { color: colors.text }]}
                     placeholder="alex@adventure.com"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     value={signupEmail}
                     onChangeText={setSignupEmail}
                     autoCapitalize="none"
@@ -433,18 +404,19 @@ export default function LoginScreen({
               </View>
 
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('createPassword')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('createPassword')}</Text>
                 <View
                   style={[
                     styles.inputWrapper,
-                    focusedField === 'signupPassword' && styles.inputWrapperFocused,
+                    { backgroundColor: colors.inputBg, borderColor: colors.border },
+                    focusedField === 'signupPassword' && { borderColor: colors.mBlue },
                   ]}
                 >
-                  <AntDesign name="lock" size={16} color="#94A3B8" style={styles.inputLeftIcon} />
+                  <AntDesign name="lock" size={16} color={colors.textMuted} style={styles.inputLeftIcon} />
                   <TextInput
-                    style={styles.inputField}
+                    style={[styles.inputField, { color: colors.text }]}
                     placeholder="Min. 8 characters"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor={colors.inputPlaceholder}
                     secureTextEntry={!showSignupPassword}
                     value={signupPassword}
                     onChangeText={setSignupPassword}
@@ -459,7 +431,7 @@ export default function LoginScreen({
                     <AntDesign
                       name={showSignupPassword ? 'eye-invisible' : 'eye'}
                       size={16}
-                      color={showSignupPassword ? '#FF5E1A' : '#94A3B8'}
+                      color={showSignupPassword ? colors.mBlue : colors.textMuted}
                     />
                   </TouchableOpacity>
                 </View>
@@ -467,24 +439,26 @@ export default function LoginScreen({
 
               {/* Primary Travel Style */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('primaryTravelStyle')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('primaryTravelStyle')}</Text>
                 <View style={styles.prefRow}>
                   <TouchableOpacity
                     onPress={() => setTravelStyle('Motorcycle')}
                     style={[
                       styles.prefButton,
-                      travelStyle === 'Motorcycle' && styles.prefButtonActive,
+                      { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle },
+                      travelStyle === 'Motorcycle' && { borderColor: colors.mBlue, backgroundColor: colors.badgeBg },
                     ]}
                   >
                     <FontAwesome6
                       name="motorcycle"
                       size={14}
-                      color={travelStyle === 'Motorcycle' ? '#FF5E1A' : '#94A3B8'}
+                      color={travelStyle === 'Motorcycle' ? colors.mBlue : colors.textMuted}
                     />
                     <Text
                       style={[
                         styles.prefButtonText,
-                        travelStyle === 'Motorcycle' && styles.prefButtonTextActive,
+                        { color: travelStyle === 'Motorcycle' ? colors.mBlue : colors.textMuted },
+                        travelStyle === 'Motorcycle' && { fontWeight: '800' },
                       ]}
                     >
                       {t('motorcycle')}
@@ -495,18 +469,20 @@ export default function LoginScreen({
                     onPress={() => setTravelStyle('Road Trip')}
                     style={[
                       styles.prefButton,
-                      travelStyle === 'Road Trip' && styles.prefButtonActive,
+                      { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle },
+                      travelStyle === 'Road Trip' && { borderColor: colors.mBlue, backgroundColor: colors.badgeBg },
                     ]}
                   >
                     <AntDesign
                       name="car"
                       size={15}
-                      color={travelStyle === 'Road Trip' ? '#FF5E1A' : '#94A3B8'}
+                      color={travelStyle === 'Road Trip' ? colors.mBlue : colors.textMuted}
                     />
                     <Text
                       style={[
                         styles.prefButtonText,
-                        travelStyle === 'Road Trip' && styles.prefButtonTextActive,
+                        { color: travelStyle === 'Road Trip' ? colors.mBlue : colors.textMuted },
+                        travelStyle === 'Road Trip' && { fontWeight: '800' },
                       ]}
                     >
                       {t('roadTrip')}
@@ -517,18 +493,20 @@ export default function LoginScreen({
                     onPress={() => setTravelStyle('Backpack')}
                     style={[
                       styles.prefButton,
-                      travelStyle === 'Backpack' && styles.prefButtonActive,
+                      { backgroundColor: colors.surfaceElevated, borderColor: colors.borderSubtle },
+                      travelStyle === 'Backpack' && { borderColor: colors.mBlue, backgroundColor: colors.badgeBg },
                     ]}
                   >
                     <FontAwesome6
                       name="person-hiking"
                       size={14}
-                      color={travelStyle === 'Backpack' ? '#FF5E1A' : '#94A3B8'}
+                      color={travelStyle === 'Backpack' ? colors.mBlue : colors.textMuted}
                     />
                     <Text
                       style={[
                         styles.prefButtonText,
-                        travelStyle === 'Backpack' && styles.prefButtonTextActive,
+                        { color: travelStyle === 'Backpack' ? colors.mBlue : colors.textMuted },
+                        travelStyle === 'Backpack' && { fontWeight: '800' },
                       ]}
                     >
                       {t('backpack')}
@@ -539,7 +517,7 @@ export default function LoginScreen({
 
               {/* Avatar Selection */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>{t('chooseAvatar')}</Text>
+                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{t('chooseAvatar')}</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -554,12 +532,12 @@ export default function LoginScreen({
                         activeOpacity={0.8}
                         style={[
                           styles.avatarOptionWrapper,
-                          isSelected && styles.avatarOptionSelected,
+                          isSelected && { borderColor: colors.mBlue },
                         ]}
                       >
                         <Image source={{ uri: avatarUri }} style={styles.avatarOptionImg} />
                         {isSelected && (
-                          <View style={styles.avatarOptionCheck}>
+                          <View style={[styles.avatarOptionCheck, { backgroundColor: colors.mRed }]}>
                             <AntDesign name="check" size={10} color="#FFFFFF" />
                           </View>
                         )}
@@ -569,6 +547,7 @@ export default function LoginScreen({
                 </ScrollView>
               </View>
 
+              {/* Signup Submit Button */}
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={handleSignupSubmit}
@@ -576,7 +555,7 @@ export default function LoginScreen({
                 disabled={isLoading}
               >
                 <LinearGradient
-                  colors={['#FF5E1A', '#EA580C', '#FF9F1C']}
+                  colors={colors.mGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.submitButtonGradient}
@@ -599,52 +578,62 @@ export default function LoginScreen({
 
           {/* Social Divider */}
           <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{t('orContinueWith')}</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textMuted }]}>{t('orContinueWith')}</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
           {/* Social Row */}
           <View style={styles.socialRow}>
             <TouchableOpacity
               onPress={() => handleSocialAuth('Google')}
-              style={[styles.socialButton, isLoading && { opacity: 0.6 }]}
+              style={[
+                styles.socialButton,
+                { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+                isLoading && { opacity: 0.6 },
+              ]}
               activeOpacity={0.75}
               disabled={isLoading}
             >
-              <AntDesign name="google" size={16} color="#E2E8F0" />
+              <AntDesign name="google" size={16} color={colors.text} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleSocialAuth('Apple')}
-              style={styles.socialButton}
+              style={[
+                styles.socialButton,
+                { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+              ]}
               activeOpacity={0.75}
             >
-              <AntDesign name="apple" size={17} color="#FFFFFF" />
+              <AntDesign name="apple" size={17} color={colors.text} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => handleSocialAuth('Facebook')}
-              style={styles.socialButton}
+              style={[
+                styles.socialButton,
+                { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+              ]}
               activeOpacity={0.75}
             >
-              <FontAwesome6 name="facebook-f" size={15} color="#38BDF8" />
+              <FontAwesome6 name="facebook-f" size={15} color="#1877F2" />
             </TouchableOpacity>
           </View>
 
           {/* Footer Legal */}
           <View style={styles.footerLegal}>
-            <Text style={styles.footerLegalText}>
+            <Text style={[styles.footerLegalText, { color: colors.textMuted }]}>
               {t('agreeTerms')}{' '}
               <Text
-                style={styles.footerLink}
+                style={[styles.footerLink, { color: colors.mBlue }]}
                 onPress={() => showToast('Waymate Terms of Service', 'info')}
               >
                 {t('terms')}
               </Text>{' '}
               &{' '}
               <Text
-                style={styles.footerLink}
+                style={[styles.footerLink, { color: colors.mBlue }]}
                 onPress={() => showToast('Waymate Privacy Policy', 'info')}
               >
                 {t('privacy')}
@@ -654,173 +643,6 @@ export default function LoginScreen({
         </View>
       </ScrollView>
 
-      {/* ================= GOOGLE OAUTH MODAL ================= */}
-      <Modal
-        visible={showGoogleModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => !isGoogleSubmitting && setShowGoogleModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.googleModalCard}>
-            {/* Modal Header */}
-            <View style={styles.googleModalHeader}>
-              <View style={styles.googleIconRow}>
-                <AntDesign name="google" size={24} color="#4285F4" />
-                <View>
-                  <Text style={styles.googleModalTitle}>{t('googleSignInTitle')}</Text>
-                  <Text style={styles.googleModalSubtitle}>{t('googleSignInSubtitle')}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => !isGoogleSubmitting && setShowGoogleModal(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                disabled={isGoogleSubmitting}
-              >
-                <AntDesign name="close" size={18} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Expo Go Notice Box */}
-            <View style={styles.googleNoticeBox}>
-              <AntDesign name="info-circle" size={14} color="#F59E0B" style={{ marginTop: 2 }} />
-              <Text style={styles.googleNoticeText}>{t('googleExpoNotice')}</Text>
-            </View>
-
-            {/* Primary Google Account Card (Lê Hoàng Lâm) */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={isGoogleSubmitting}
-              onPress={() =>
-                handleGoogleAccountSelect(
-                  'lhlam.lehoang@gmail.com',
-                  'Lê Hoàng Lâm',
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80'
-                )
-              }
-              style={styles.googleAccountCard}
-            >
-              <View style={styles.googleAvatarCircle}>
-                <Text style={styles.googleAvatarInitial}>L</Text>
-              </View>
-              <View style={styles.googleAccountInfo}>
-                <View style={styles.googleNameRow}>
-                  <Text style={styles.googleAccountName}>Lê Hoàng Lâm</Text>
-                  <View style={styles.googleActiveBadge}>
-                    <AntDesign name="check" size={10} color="#10B981" />
-                  </View>
-                </View>
-                <Text style={styles.googleAccountEmail}>lhlam.lehoang@gmail.com</Text>
-                <Text style={styles.googleAccountStatus}>Google Account • Ready</Text>
-              </View>
-              <AntDesign name="right" size={14} color="#94A3B8" />
-            </TouchableOpacity>
-
-            {/* 1-Tap Quick Sign-In Button */}
-            <TouchableOpacity
-              activeOpacity={0.9}
-              disabled={isGoogleSubmitting}
-              onPress={() =>
-                handleGoogleAccountSelect(
-                  'lhlam.lehoang@gmail.com',
-                  'Lê Hoàng Lâm',
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=250&q=80'
-                )
-              }
-              style={styles.googleContinueBtn}
-            >
-              <LinearGradient
-                colors={['#4285F4', '#34A853']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.googleContinueGradient}
-              >
-                {isGoogleSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <AntDesign name="google" size={15} color="#FFFFFF" />
-                    <Text style={styles.googleContinueText}>
-                      {t('continueAsUser')} Lê Hoàng Lâm
-                    </Text>
-                    <AntDesign name="arrow-right" size={14} color="#FFFFFF" />
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Custom / Alternative Email Section Toggle */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setIsCustomGoogleMode(!isCustomGoogleMode)}
-              style={styles.toggleCustomBtn}
-            >
-              <Text style={styles.toggleCustomText}>
-                {isCustomGoogleMode ? '— ' + t('cancel') : '+ ' + t('googleUseOtherEmail')}
-              </Text>
-            </TouchableOpacity>
-
-            {isCustomGoogleMode && (
-              <View style={styles.customEmailBox}>
-                <TextInput
-                  style={styles.customInput}
-                  placeholder={t('googleEmailPlaceholder')}
-                  placeholderTextColor="#64748B"
-                  value={googleCustomEmail}
-                  onChangeText={setGoogleCustomEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-                <TextInput
-                  style={[styles.customInput, { marginTop: 8 }]}
-                  placeholder={t('googleCustomNamePlaceholder')}
-                  placeholderTextColor="#64748B"
-                  value={googleCustomName}
-                  onChangeText={setGoogleCustomName}
-                  autoCapitalize="words"
-                />
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  disabled={isGoogleSubmitting || !googleCustomEmail.trim()}
-                  onPress={() =>
-                    handleGoogleAccountSelect(
-                      googleCustomEmail.trim(),
-                      googleCustomName.trim() || undefined
-                    )
-                  }
-                  style={[
-                    styles.customSubmitBtn,
-                    (!googleCustomEmail.trim() || isGoogleSubmitting) && { opacity: 0.5 },
-                  ]}
-                >
-                  <Text style={styles.customSubmitText}>{t('googleSignInBtn')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Footer Token Info & Optional Browser Attempt */}
-            <View style={styles.googleModalFooter}>
-              <View style={styles.jwtBadgeRow}>
-                <AntDesign name="safety-certificate" size={12} color="#10B981" />
-                <Text style={styles.jwtBadgeText}>
-                  Neo4j Database Sync • 24h JWT Session Token
-                </Text>
-              </View>
-              {Platform.OS === 'web' && (
-                <TouchableOpacity
-                  onPress={handleBrowserOAuth}
-                  style={{ marginTop: 8 }}
-                  disabled={isGoogleSubmitting}
-                >
-                  <Text style={{ fontSize: 11, color: '#38BDF8', textDecorationLine: 'underline' }}>
-                    Open Web Browser OAuth
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -835,10 +657,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardContainer: {
-    backgroundColor: 'rgba(21, 28, 44, 0.9)',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 20,
@@ -847,7 +667,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.45,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 8,
   },
@@ -859,11 +679,11 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 16,
-    padding: 2,
+    padding: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    shadowColor: '#FF5E1A',
+    shadowColor: '#00A3E0',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -872,29 +692,40 @@ const styles = StyleSheet.create({
   logoInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
-    backgroundColor: '#0B0F19',
+    borderRadius: 13.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  appNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   appName: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#FFFFFF',
     letterSpacing: 2,
+  },
+  mBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  mBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#00A3E0',
   },
   appTagline: {
     fontSize: 11.5,
-    color: '#94A3B8',
     marginTop: 4,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0F172A',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#1E293B',
     padding: 3,
     marginBottom: 18,
   },
@@ -908,7 +739,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     borderRadius: 11,
-    shadowColor: '#FF5E1A',
+    shadowColor: '#00A3E0',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -930,7 +761,6 @@ const styles = StyleSheet.create({
   tabInactiveText: {
     fontSize: 12.5,
     fontWeight: '600',
-    color: '#94A3B8',
   },
   formContainer: {
     gap: 12,
@@ -940,21 +770,15 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 11.5,
-    fontWeight: '600',
-    color: '#CBD5E1',
+    fontWeight: '700',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.75)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 12,
     height: 44,
-  },
-  inputWrapperFocused: {
-    borderColor: '#FF5E1A',
   },
   inputLeftIcon: {
     marginRight: 8,
@@ -962,7 +786,6 @@ const styles = StyleSheet.create({
   inputField: {
     flex: 1,
     fontSize: 12.5,
-    color: '#FFFFFF',
     paddingVertical: 0,
   },
   rememberMeRow: {
@@ -976,23 +799,17 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#475569',
-    backgroundColor: '#1E293B',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxActive: {
-    backgroundColor: '#FF5E1A',
-    borderColor: '#FF5E1A',
-  },
   rememberMeText: {
     fontSize: 11.5,
-    color: '#CBD5E1',
+    fontWeight: '600',
   },
   submitButtonTouch: {
     marginTop: 6,
     borderRadius: 12,
-    shadowColor: '#FF5E1A',
+    shadowColor: '#00A3E0',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -1023,7 +840,6 @@ const styles = StyleSheet.create({
   forgotPasswordBelowText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FF9F1C',
   },
   prefRow: {
     flexDirection: 'row',
@@ -1037,20 +853,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(51, 65, 85, 0.6)',
-    backgroundColor: 'rgba(30, 41, 59, 0.6)',
-  },
-  prefButtonActive: {
-    borderColor: '#FF5E1A',
-    backgroundColor: 'rgba(255, 94, 26, 0.18)',
   },
   prefButtonText: {
     fontSize: 10.5,
     fontWeight: '600',
-    color: '#94A3B8',
-  },
-  prefButtonTextActive: {
-    color: '#FFFFFF',
   },
   dividerContainer: {
     flexDirection: 'row',
@@ -1060,13 +866,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1E293B',
   },
   dividerText: {
     marginHorizontal: 12,
     fontSize: 9.5,
     fontWeight: '700',
-    color: '#64748B',
     letterSpacing: 1,
   },
   socialRow: {
@@ -1078,8 +882,6 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1089,11 +891,9 @@ const styles = StyleSheet.create({
   },
   footerLegalText: {
     fontSize: 9.5,
-    color: '#64748B',
     textAlign: 'center',
   },
   footerLink: {
-    color: '#94A3B8',
     textDecorationLine: 'underline',
   },
   loadingBtnRow: {
@@ -1116,9 +916,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  avatarOptionSelected: {
-    borderColor: '#FF5E1A',
-  },
   avatarOptionImg: {
     width: '100%',
     height: '100%',
@@ -1128,7 +925,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#FF5E1A',
     width: 16,
     height: 16,
     borderRadius: 8,
@@ -1136,189 +932,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: '#0F172A',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  googleModalCard: {
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    padding: 20,
-    width: '100%',
-    maxWidth: 420,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 10,
-  },
-  googleModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  googleIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  googleModalTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  googleModalSubtitle: {
-    fontSize: 11.5,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  googleNoticeBox: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.25)',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 16,
-  },
-  googleNoticeText: {
-    flex: 1,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#FCD34D',
-  },
-  googleAccountCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.7)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 12,
-    marginBottom: 12,
-  },
-  googleAvatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  googleAvatarInitial: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  googleAccountInfo: {
-    flex: 1,
-  },
-  googleNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  googleAccountName: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  googleActiveBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderRadius: 8,
-    padding: 2,
-  },
-  googleAccountEmail: {
-    fontSize: 12,
-    color: '#CBD5E1',
-    marginTop: 1,
-  },
-  googleAccountStatus: {
-    fontSize: 10,
-    color: '#10B981',
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  googleContinueBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  googleContinueGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 44,
-    paddingHorizontal: 16,
-  },
-  googleContinueText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  toggleCustomBtn: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  toggleCustomText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  customEmailBox: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    marginTop: 6,
-    marginBottom: 12,
-  },
-  customInput: {
-    backgroundColor: 'rgba(30, 41, 59, 0.8)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    height: 40,
-    fontSize: 12,
-    color: '#FFFFFF',
-  },
-  customSubmitBtn: {
-    backgroundColor: '#FF5E1A',
-    borderRadius: 10,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  customSubmitText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  googleModalFooter: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  jwtBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  jwtBadgeText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontWeight: '500',
   },
 });
