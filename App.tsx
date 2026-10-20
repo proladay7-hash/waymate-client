@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,14 @@ import VehiclesScreen from './src/screens/VehiclesScreen';
 import { initialVehicles, Vehicle } from './src/data/mockVehicles';
 import { mockTripsData, TripData } from './src/data/mockTrips';
 import { UserDto, setAuthToken } from './src/services/authApi';
+import {
+  fetchVehiclesWithMaintenance,
+  createVehicleApi,
+  updateVehicleApi,
+  deleteVehicleApi,
+  createMaintenanceHistoryApi,
+} from './src/services/vehicleApi';
+import LaunchLoadingScreen from './src/components/LaunchLoadingScreen';
 
 export type ToastType = 'success' | 'info' | 'error';
 
@@ -43,6 +51,9 @@ function MainApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserDto | null>(null);
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('login');
+
+  // First Launch Loading Screen State
+  const [isFirstLaunchLoading, setIsFirstLaunchLoading] = useState(true);
 
   // Vehicles & Maintenance Tracker State
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
@@ -107,19 +118,97 @@ function MainApp() {
     showToast('Logged out successfully', 'info');
   };
 
-  // Vehicle management
-  const handleAddVehicle = (newVeh: Vehicle) => {
-    setVehicles((prev) => [newVeh, ...prev]);
+  // Vehicle management & Neo4j sync
+  const [isVehiclesLoading, setIsVehiclesLoading] = useState(false);
+
+  // Load vehicles from Neo4j when user logs in or currentUser changes
+  const loadUserVehicles = async (userId: string) => {
+    setIsVehiclesLoading(true);
+    try {
+      const data = await fetchVehiclesWithMaintenance(userId);
+      setVehicles(data);
+    } catch (err: any) {
+      console.warn('[App] Failed to load vehicles from Neo4j:', err.message);
+    } finally {
+      setIsVehiclesLoading(false);
+    }
   };
 
-  const handleUpdateVehicle = (updatedVeh: Vehicle) => {
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadUserVehicles(currentUser.id);
+    }
+  }, [currentUser?.id]);
+
+  const handleAddVehicle = async (newVeh: Vehicle) => {
+    // Optimistic UI update
+    setVehicles((prev) => [newVeh, ...prev]);
+
+    if (!currentUser?.id) return;
+    try {
+      const created = await createVehicleApi(currentUser.id, {
+        name: newVeh.name,
+        brand: newVeh.brand,
+        plateNumber: newVeh.plateNumber,
+        odo: newVeh.currentOdoKm,
+        date: newVeh.year,
+        capacity: newVeh.capacity || (newVeh.type === 'bike' ? 300 : 1500),
+      });
+
+      // If initial service record exists, create it in Neo4j
+      if (newVeh.serviceHistory && newVeh.serviceHistory.length > 0) {
+        const initRec = newVeh.serviceHistory[0];
+        try {
+          await createMaintenanceHistoryApi(created.id, {
+            name: initRec.serviceItem,
+            location: initRec.notes || 'Waymate Garage',
+            total: 0,
+            maintenanceRequests: [
+              {
+                name: initRec.serviceItem,
+                price: 0,
+              },
+            ],
+          });
+        } catch (mErr: any) {
+          console.warn('[App] Failed to create initial maintenance in Neo4j:', mErr.message);
+        }
+      }
+
+      await loadUserVehicles(currentUser.id);
+    } catch (err: any) {
+      console.error('[App] Failed to create vehicle in Neo4j:', err.message);
+      showToast('Could not sync vehicle to server, saved locally', 'info');
+    }
+  };
+
+  const handleUpdateVehicle = async (updatedVeh: Vehicle) => {
     setVehicles((prev) =>
       prev.map((v) => (v.id === updatedVeh.id ? updatedVeh : v))
     );
+
+    try {
+      await updateVehicleApi({
+        id: updatedVeh.id,
+        name: updatedVeh.name,
+        brand: updatedVeh.brand,
+        plateNumber: updatedVeh.plateNumber,
+        odo: updatedVeh.currentOdoKm,
+        date: updatedVeh.year,
+      });
+    } catch (err: any) {
+      console.warn('[App] Failed to sync vehicle update to Neo4j:', err.message);
+    }
   };
 
-  const handleDeleteVehicle = (vehicleId: string) => {
+  const handleDeleteVehicle = async (vehicleId: string) => {
     setVehicles((prev) => prev.filter((v) => v.id !== vehicleId));
+    try {
+      await deleteVehicleApi(vehicleId);
+      showToast(t('vehicleDeletedSuccess'), 'info');
+    } catch (err: any) {
+      console.warn('[App] Failed to delete vehicle from Neo4j:', err.message);
+    }
   };
 
   // Toggle favorite saved trip
@@ -223,6 +312,8 @@ function MainApp() {
             onAddVehicle={handleAddVehicle}
             onUpdateVehicle={handleUpdateVehicle}
             onDeleteVehicle={handleDeleteVehicle}
+            onRefreshVehicles={() => (currentUser?.id ? loadUserVehicles(currentUser.id) : Promise.resolve())}
+            isRefreshing={isVehiclesLoading}
             showToast={showToast}
           />
         )}
@@ -299,6 +390,14 @@ function MainApp() {
             </TouchableOpacity>
           </View>
         </Animated.View>
+      )}
+
+      {/* Fullscreen Initial Launch Splash Screen - Placed last so it is 100% on top of all screens with solid backdrop */}
+      {isFirstLaunchLoading && (
+        <LaunchLoadingScreen
+          duration={2300}
+          onFinish={() => setIsFirstLaunchLoading(false)}
+        />
       )}
     </SafeAreaView>
   );

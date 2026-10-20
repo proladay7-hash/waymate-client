@@ -6,6 +6,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
 import { useUserLocation } from '../context/LocationContext';
 import { useTheme } from '../context/ThemeContext';
+import WaymateIcon from './WaymateIcon';
 
 export type ScreenId = 'login' | 'forgot' | 'home' | 'trip' | 'vehicles' | 'profile' | 'changepwd';
 
@@ -67,7 +68,7 @@ export default function TopBar({
               end={{ x: 1, y: 1 }}
               style={styles.logoBadge}
             >
-              <FontAwesome6 name="route" size={13} color="#FFFFFF" />
+              <WaymateIcon width={23} height={10} color="#FFFFFF" strokeWidth={15} />
             </LinearGradient>
             <View style={styles.brandTextWrapper}>
               <Text style={[styles.brandTitle, { color: colors.text }]} numberOfLines={1}>
@@ -211,9 +212,9 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   logoBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
+    width: 30,
+    height: 24,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#00A3E0',

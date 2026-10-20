@@ -8,18 +8,26 @@ import {
   Modal,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { Vehicle, ServiceRecord } from '../data/mockVehicles';
+import {
+  createMaintenanceHistoryApi,
+  updateVehicleApi,
+  deleteMaintenanceHistoryApi,
+} from '../services/vehicleApi';
 
 interface VehiclesScreenProps {
   vehicles: Vehicle[];
-  onAddVehicle: (newVeh: Vehicle) => void;
-  onUpdateVehicle: (updatedVeh: Vehicle) => void;
-  onDeleteVehicle: (vehicleId: string) => void;
+  onAddVehicle: (newVeh: Vehicle) => void | Promise<void>;
+  onUpdateVehicle: (updatedVeh: Vehicle) => void | Promise<void>;
+  onDeleteVehicle: (vehicleId: string) => void | Promise<void>;
+  onRefreshVehicles?: () => Promise<void>;
+  isRefreshing?: boolean;
   showToast: (message: string, type?: 'success' | 'info') => void;
 }
 
@@ -28,6 +36,8 @@ export default function VehiclesScreen({
   onAddVehicle,
   onUpdateVehicle,
   onDeleteVehicle,
+  onRefreshVehicles,
+  isRefreshing,
   showToast,
 }: VehiclesScreenProps) {
   const { t, formatDistance } = useLanguage();
@@ -99,10 +109,37 @@ export default function VehiclesScreen({
   };
 
   // Handle Quick Oil Replacement Log
-  const handleConfirmQuickOil = () => {
+  const handleConfirmQuickOil = async () => {
     if (!quickOilVeh) return;
     const odoNum = parseInt(quickOilOdo, 10) || quickOilVeh.currentOdoKm;
     const today = new Date().toISOString().split('T')[0];
+
+    // Sync with backend Neo4j Maintenance API
+    let createdRecordId = `srv-${Date.now()}`;
+    try {
+      const res = await createMaintenanceHistoryApi(quickOilVeh.id, {
+        name: 'Engine Oil & Filter Replacement',
+        total: 850000,
+        location: 'Waymate Quick Service Tracker',
+        maintenanceRequests: [
+          {
+            name: 'Engine Oil Replacement',
+            price: 850000,
+          },
+        ],
+      });
+      if (res && res.id) {
+        createdRecordId = res.id;
+      }
+      if (odoNum > quickOilVeh.currentOdoKm) {
+        await updateVehicleApi({
+          id: quickOilVeh.id,
+          odo: odoNum,
+        });
+      }
+    } catch (err: any) {
+      console.warn('[VehiclesScreen] Quick oil Neo4j sync error:', err.message);
+    }
 
     const updatedVehicle: Vehicle = {
       ...quickOilVeh,
@@ -111,7 +148,7 @@ export default function VehiclesScreen({
       lastOilOdoKm: odoNum,
       serviceHistory: [
         {
-          id: `srv-${Date.now()}`,
+          id: createdRecordId,
           serviceItem: 'Engine Oil & Filter Replacement',
           date: today,
           odoKm: odoNum,
@@ -129,7 +166,7 @@ export default function VehiclesScreen({
   };
 
   // Handle Add Service Record
-  const handleSaveServiceRecord = () => {
+  const handleSaveServiceRecord = async () => {
     if (!selectedVehForService || !newServiceItem.trim()) {
       showToast('Please enter the service item description', 'info');
       return;
@@ -137,9 +174,37 @@ export default function VehiclesScreen({
 
     const odoNum = parseInt(newServiceOdo, 10) || selectedVehForService.currentOdoKm;
     const today = new Date().toISOString().split('T')[0];
+    const costNumber = parseFloat(newServiceCost.replace(/[^0-9.]/g, '')) || 0;
+
+    // Sync with backend Neo4j Maintenance API
+    let createdRecordId = `srv-${Date.now()}`;
+    try {
+      const res = await createMaintenanceHistoryApi(selectedVehForService.id, {
+        name: newServiceItem.trim(),
+        total: costNumber,
+        location: newServiceNotes.trim() || 'General maintenance check',
+        maintenanceRequests: [
+          {
+            name: newServiceItem.trim(),
+            price: costNumber,
+          },
+        ],
+      });
+      if (res && res.id) {
+        createdRecordId = res.id;
+      }
+      if (odoNum > selectedVehForService.currentOdoKm) {
+        await updateVehicleApi({
+          id: selectedVehForService.id,
+          odo: odoNum,
+        });
+      }
+    } catch (err: any) {
+      console.warn('[VehiclesScreen] Service record Neo4j sync error:', err.message);
+    }
 
     const newRecord: ServiceRecord = {
-      id: `srv-${Date.now()}`,
+      id: createdRecordId,
       serviceItem: newServiceItem.trim(),
       date: today,
       odoKm: odoNum,
@@ -161,6 +226,33 @@ export default function VehiclesScreen({
     setNewServiceCost('');
     setNewServiceNotes('');
     showToast(t('serviceAddedSuccess'), 'success');
+  };
+
+  const handleDeleteServiceRecord = (veh: Vehicle, recordId: string) => {
+    Alert.alert(
+      'Delete Service Record',
+      'Are you sure you want to delete this maintenance record?',
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMaintenanceHistoryApi(recordId);
+            } catch (err: any) {
+              console.warn('[VehiclesScreen] Failed to delete maintenance in Neo4j:', err.message);
+            }
+            const updatedVehicle: Vehicle = {
+              ...veh,
+              serviceHistory: veh.serviceHistory.filter((s) => s.id !== recordId),
+            };
+            onUpdateVehicle(updatedVehicle);
+            showToast('Service record deleted', 'info');
+          },
+        },
+      ]
+    );
   };
 
   const handleDeletePrompt = (veh: Vehicle) => {
@@ -186,6 +278,16 @@ export default function VehiclesScreen({
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        onRefreshVehicles ? (
+          <RefreshControl
+            refreshing={isRefreshing || false}
+            onRefresh={onRefreshVehicles}
+            tintColor={colors.mBlue}
+            colors={[colors.mBlue]}
+          />
+        ) : undefined
+      }
     >
       {/* Top Header */}
       <View style={styles.headerRow}>
@@ -391,8 +493,16 @@ export default function VehiclesScreen({
                           <Text style={[styles.recordNotes, { color: colors.textMuted }]}>{srv.notes}</Text>
                         ) : null}
                       </View>
-                      <View style={[styles.recordCostBadge, { backgroundColor: colors.mBlueMuted }]}>
-                        <Text style={[styles.recordCostText, { color: colors.mBlue }]}>{srv.costVnd}</Text>
+                      <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                        <View style={[styles.recordCostBadge, { backgroundColor: colors.mBlueMuted }]}>
+                          <Text style={[styles.recordCostText, { color: colors.mBlue }]}>{srv.costVnd}</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteServiceRecord(veh, srv.id)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <AntDesign name="delete" size={13} color={colors.danger} />
+                        </TouchableOpacity>
                       </View>
                     </View>
                   ))}

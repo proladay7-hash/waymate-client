@@ -76,7 +76,7 @@ export interface ResetPasswordPayload {
 }
 
 const DEFAULT_FALLBACK_USER: UserDto = {
-  id: 'usr-neo4j-101',
+  id: 'a0000000-0000-0000-0000-000000000101',
   name: 'Alex "Viper" Mercer',
   email: 'rider_alex@waymate.app',
   avatar:

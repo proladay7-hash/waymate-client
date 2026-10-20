@@ -18,6 +18,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { signupApi, signinApi, UserDto } from '../services/authApi';
 import { promptGoogleLogin } from '../services/googleAuth';
+import WaymateIcon from '../components/WaymateIcon';
 
 type TravelStyle = 'Motorcycle' | 'Road Trip' | 'Backpack';
 type AuthMode = 'login' | 'signup';
@@ -170,7 +171,7 @@ export default function LoginScreen({
               style={styles.logoGradientBorder}
             >
               <View style={[styles.logoInner, { backgroundColor: colors.surface }]}>
-                <FontAwesome6 name="route" size={24} color={colors.mBlue} />
+                <WaymateIcon width={40} height={17} strokeWidth={14} color={colors.mBlue} />
               </View>
             </LinearGradient>
             <View style={styles.appNameRow}>
@@ -676,9 +677,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   logoGradientBorder: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
+    width: 60,
+    height: 44,
+    borderRadius: 14,
     padding: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -692,7 +693,7 @@ const styles = StyleSheet.create({
   logoInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 13.5,
+    borderRadius: 11.5,
     alignItems: 'center',
     justifyContent: 'center',
   },

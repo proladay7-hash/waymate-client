@@ -15,6 +15,7 @@ export interface Vehicle {
   plateNumber: string;
   currentOdoKm: number;
   year: number;
+  capacity?: number;
   lastOilDate: string;
   lastOilOdoKm: number;
   oilIntervalKm: number;
