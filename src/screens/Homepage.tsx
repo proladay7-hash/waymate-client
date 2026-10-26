@@ -44,7 +44,7 @@ export default function Homepage({ user, onLogout }: HomepageProps = {}) {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <Text style={styles.mark}>Waymate</Text>
+      <Text style={styles.mark}>WayMate</Text>
       <Text style={styles.subtitle}>Your companion for the road ahead.</Text>
       {user && (
         <View style={styles.userBadge}>

@@ -94,7 +94,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           if (showRationalePrompt && !canAskAgain && Platform.OS !== 'web') {
             Alert.alert(
               'Location Access Required',
-              'Waymate uses GPS to detect nearby riders and record trip telemetry. Please enable Location in your device settings.',
+              'WayMate uses GPS to detect nearby riders and record trip telemetry. Please enable Location in your device settings.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Open Settings', onPress: openDeviceSettings },

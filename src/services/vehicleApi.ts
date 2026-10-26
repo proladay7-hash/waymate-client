@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/api';
 import { getAuthToken } from './authApi';
-import { Vehicle, ServiceRecord, initialVehicles } from '../data/mockVehicles';
+import { Vehicle, ServiceRecord } from '../data/mockVehicles';
 
 export interface BackendVehicleResponse {
   id: string;
@@ -336,10 +336,6 @@ export async function fetchVehiclesWithMaintenance(userId: string): Promise<Vehi
     return await Promise.all(vehiclePromises);
   } catch (error: any) {
     console.warn('[vehicleApi] fetchVehiclesWithMaintenance error:', error.message);
-    if (isNetworkOrAbortError(error)) {
-      // In offline/dev fallback mode, provide initial vehicles
-      return initialVehicles;
-    }
-    throw error;
+    return [];
   }
 }

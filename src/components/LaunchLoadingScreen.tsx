@@ -147,9 +147,8 @@ export default function LaunchLoadingScreen({
           >
             {/* The Custom Drawn WayMate Route Icon */}
             <WaymateIcon
-              width={90}
-              height={38}
-              strokeWidth={13}
+              size={62}
+              strokeWidth={7}
               useGradient={true}
               gradientColors={colors.mGradient}
             />
@@ -231,19 +230,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logoBadgeBorder: {
+    width: 92,
+    height: 92,
     padding: 3,
-    borderRadius: 24,
+    borderRadius: 26,
     shadowColor: '#00A3E0',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
     shadowRadius: 18,
     elevation: 12,
     marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoBadgeInner: {
-    paddingVertical: 18,
-    paddingHorizontal: 26,
-    borderRadius: 21,
+    width: '100%',
+    height: '100%',
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },

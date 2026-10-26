@@ -43,14 +43,33 @@ export const openGoogleMapsNavigation = openGoogleMapsTripPreview;
 /**
  * Opens a Google Maps URL directly (e.g. https://maps.app.goo.gl/... or custom Google Maps link),
  * or falls back to coordinates preview if no direct URL is provided.
+ * Handles both (mapUrl, lat, lng, label) and (lat, lng, undefined, label) call signatures safely.
  */
 export async function openGoogleMapsLinkOrCoords(
-  mapUrl?: string,
-  latitude?: number,
-  longitude?: number,
-  label?: string
+  mapUrlOrLat?: string | number,
+  latitudeOrLng?: number,
+  longitudeOrLabel?: number | string,
+  labelParam?: string
 ): Promise<void> {
-  if (mapUrl && mapUrl.trim().length > 0) {
+  let mapUrl: string | undefined;
+  let latitude: number | undefined;
+  let longitude: number | undefined;
+  let label: string | undefined;
+
+  if (typeof mapUrlOrLat === 'number') {
+    // Called as: openGoogleMapsLinkOrCoords(lat, lng, undefined, label) or (lat, lng, label)
+    latitude = mapUrlOrLat;
+    longitude = typeof latitudeOrLng === 'number' ? latitudeOrLng : undefined;
+    label = typeof longitudeOrLabel === 'string' ? longitudeOrLabel : labelParam;
+  } else {
+    // Called as: openGoogleMapsLinkOrCoords(mapUrl, lat, lng, label)
+    mapUrl = typeof mapUrlOrLat === 'string' ? mapUrlOrLat : undefined;
+    latitude = typeof latitudeOrLng === 'number' ? latitudeOrLng : undefined;
+    longitude = typeof longitudeOrLabel === 'number' ? longitudeOrLabel : undefined;
+    label = labelParam;
+  }
+
+  if (typeof mapUrl === 'string' && mapUrl.trim().length > 0) {
     let url = mapUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
@@ -66,8 +85,8 @@ export async function openGoogleMapsLinkOrCoords(
     }
   }
 
-  if (latitude !== undefined && longitude !== undefined) {
-    await openGoogleMapsTripPreview(latitude, longitude, label);
+  if (typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude)) {
+    await openGoogleMapsLocation(latitude, longitude, label);
   }
 }
 
@@ -79,7 +98,7 @@ export async function openGoogleMapsLocation(
   longitude: number,
   label?: string
 ): Promise<void> {
-  const encodedLabel = encodeURIComponent(label || 'Destination');
+  const encodedLabel = encodeURIComponent(label || 'Shared Location');
   const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
 
   const nativeAppUrl = Platform.select({
@@ -94,9 +113,13 @@ export async function openGoogleMapsLocation(
       await Linking.openURL(nativeAppUrl);
       return;
     }
-  } catch {
-    // fallback
+  } catch (err) {
+    console.warn('[openGoogleMapsLocation] Native map intent check failed:', err);
   }
 
-  await Linking.openURL(webUrl);
+  try {
+    await Linking.openURL(webUrl);
+  } catch (err) {
+    console.error('[openGoogleMapsLocation] Failed to open Google Maps web URL:', err);
+  }
 }

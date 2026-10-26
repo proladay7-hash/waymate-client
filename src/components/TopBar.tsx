@@ -7,8 +7,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUserLocation } from '../context/LocationContext';
 import { useTheme } from '../context/ThemeContext';
 import WaymateIcon from './WaymateIcon';
+import WayMateAgentIcon from './WayMateAgentIcon';
 
-export type ScreenId = 'login' | 'forgot' | 'home' | 'trip' | 'vehicles' | 'profile' | 'changepwd';
+export type ScreenId = 'login' | 'forgot' | 'home' | 'trip' | 'vehicles' | 'profile' | 'changepwd' | 'chat' | 'sosdetail';
 
 interface TopBarProps {
   currentScreen: ScreenId;
@@ -16,6 +17,9 @@ interface TopBarProps {
   onBack?: () => void;
   isLoggedIn: boolean;
   onLogout?: () => void;
+  onOpenChat?: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationCount?: number;
   showToast?: (message: string, type?: 'success' | 'info') => void;
 }
 
@@ -24,13 +28,20 @@ export default function TopBar({
   onBack,
   isLoggedIn,
   onLogout,
+  onOpenChat,
+  onOpenNotifications,
+  unreadNotificationCount = 0,
   showToast,
 }: TopBarProps) {
   const { language, setLanguage, unit, toggleUnit, t } = useLanguage();
   const { permissionStatus, requestLocationPermission } = useUserLocation();
   const { colors, isDark, toggleTheme } = useTheme();
 
-  const isSubScreen = currentScreen === 'trip' || currentScreen === 'forgot' || currentScreen === 'changepwd';
+  const isSubScreen =
+    currentScreen === 'trip' ||
+    currentScreen === 'forgot' ||
+    currentScreen === 'changepwd' ||
+    currentScreen === 'sosdetail';
 
   const getSubScreenTitle = () => {
     switch (currentScreen) {
@@ -40,6 +51,8 @@ export default function TopBar({
         return t('navForgotPwd');
       case 'changepwd':
         return t('navChangePwd');
+      case 'sosdetail':
+        return '🚨 SOS Roadside Assistance';
       default:
         return '';
     }
@@ -68,7 +81,7 @@ export default function TopBar({
               end={{ x: 1, y: 1 }}
               style={styles.logoBadge}
             >
-              <WaymateIcon width={23} height={10} color="#FFFFFF" strokeWidth={15} />
+              <WaymateIcon size={19} color="#FFFFFF" strokeWidth={7} />
             </LinearGradient>
             <View style={styles.brandTextWrapper}>
               <Text style={[styles.brandTitle, { color: colors.text }]} numberOfLines={1}>
@@ -81,8 +94,51 @@ export default function TopBar({
           </View>
         )}
 
-        {/* Right side controls: Theme switch, GPS Status, Language switcher, Unit toggle, optional Logout */}
+        {/* Right side controls: AI Agent, Theme switch, GPS Status, Language switcher, Unit toggle, optional Logout */}
         <View style={styles.actionsRow}>
+          {/* AI Agent Quick Open Button (only when logged in) */}
+          {isLoggedIn && onOpenChat && (
+            <TouchableOpacity
+              style={[
+                styles.aiChatTopBtn,
+                {
+                  backgroundColor: 'rgba(0, 163, 224, 0.15)',
+                  borderColor: isDark ? 'rgba(0, 163, 224, 0.45)' : 'rgba(0, 102, 177, 0.35)',
+                },
+              ]}
+              onPress={onOpenChat}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <WayMateAgentIcon size={16} showAccents={false} />
+            </TouchableOpacity>
+          )}
+
+          {/* Notifications Bell Button (only when logged in) */}
+          {isLoggedIn && onOpenNotifications && (
+            <TouchableOpacity
+              style={[
+                styles.notifTopBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(0, 82, 255, 0.15)' : 'rgba(0, 82, 255, 0.1)',
+                  borderColor: isDark ? 'rgba(0, 82, 255, 0.45)' : 'rgba(0, 82, 255, 0.35)',
+                },
+              ]}
+              onPress={onOpenNotifications}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <FontAwesome6 name="bell" size={11} color={colors.mBlue} />
+              {unreadNotificationCount > 0 && (
+                <View style={[styles.topNotifBadge, { backgroundColor: colors.mRed }]}>
+                  <Text style={styles.topNotifBadgeText}>
+                    {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
           {/* Dark / Light Theme Toggle Button */}
           <TouchableOpacity
             style={[
@@ -149,17 +205,19 @@ export default function TopBar({
             <Text style={[styles.langToggleText, { color: colors.text }]}>{language}</Text>
           </TouchableOpacity>
 
-          {/* Compact Unit Switcher (KM / MI) */}
-          <TouchableOpacity
-            style={[styles.unitBtn, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}
-            onPress={toggleUnit}
-            activeOpacity={0.8}
-          >
-            <AntDesign name="dashboard" size={10} color={colors.mBlue} />
-            <Text style={[styles.unitBtnText, { color: colors.text }]}>
-              {unit === 'KM' ? 'KM' : 'MI'}
-            </Text>
-          </TouchableOpacity>
+          {/* Compact Unit Switcher (KM / MI) - ONLY when logged in */}
+          {isLoggedIn && (
+            <TouchableOpacity
+              style={[styles.unitBtn, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}
+              onPress={toggleUnit}
+              activeOpacity={0.8}
+            >
+              <AntDesign name="dashboard" size={10} color={colors.mBlue} />
+              <Text style={[styles.unitBtnText, { color: colors.text }]}>
+                {unit === 'KM' ? 'KM' : 'MI'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Logout button (visible in Profile screen when logged in) */}
           {isLoggedIn && currentScreen === 'profile' && onLogout && (
@@ -212,9 +270,9 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   logoBadge: {
-    width: 30,
-    height: 24,
-    borderRadius: 6,
+    width: 27,
+    height: 27,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#00A3E0',
@@ -242,6 +300,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     flexShrink: 0,
+  },
+  aiChatTopBtn: {
+    width: 25,
+    height: 25,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  notifTopBtn: {
+    width: 25,
+    height: 25,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    position: 'relative',
+  },
+  topNotifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 13,
+    height: 13,
+    borderRadius: 6.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  topNotifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 7.5,
+    fontWeight: '900',
   },
   themeBtn: {
     width: 25,

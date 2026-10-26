@@ -12,7 +12,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { mockTripsData, TripData } from '../data/mockTrips';
+import { TripData } from '../data/mockTrips';
 import { openGoogleMapsNavigation, openGoogleMapsLinkOrCoords } from '../utils/mapUtils';
 
 interface TripDetailScreenProps {
@@ -26,7 +26,7 @@ interface TripDetailScreenProps {
 
 export default function TripDetailScreen({
   tripId,
-  trips,
+  trips = [],
   onBack,
   savedTripIds,
   onToggleSaveTrip,
@@ -35,12 +35,23 @@ export default function TripDetailScreen({
   const { language, t, formatDistance, formatSpeed } = useLanguage();
   const { colors, isDark } = useTheme();
 
-  const allTrips = trips && trips.length > 0 ? trips : mockTripsData;
-  const trip: TripData = allTrips.find((t) => t.id === tripId) ?? allTrips[0];
-  const isSaved = savedTripIds.includes(trip.id);
+  const allTrips = trips;
+  const trip: TripData | undefined = allTrips.find((t) => t.id === tripId) ?? allTrips[0];
+  const isSaved = trip ? savedTripIds.includes(trip.id) : false;
 
-  const displayTitle = language === 'VIE' ? trip.titleVie : trip.title;
-  const displayDescription = language === 'VIE' ? trip.descriptionVie : trip.description;
+  const displayTitle = trip ? (language === 'VIE' ? trip.titleVie : trip.title) : 'Trip Details';
+  const displayDescription = trip ? (language === 'VIE' ? trip.descriptionVie : trip.description) : '';
+
+  if (!trip) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Trip Not Found</Text>
+        <TouchableOpacity onPress={onBack} style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.mBlue, borderRadius: 10 }}>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView

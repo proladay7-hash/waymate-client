@@ -14,7 +14,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
 import { useUserLocation } from '../context/LocationContext';
 import { useTheme } from '../context/ThemeContext';
-import { mockTripsData, TripData } from '../data/mockTrips';
+import { TripData } from '../data/mockTrips';
 import { Vehicle } from '../data/mockVehicles';
 import { UserDto } from '../services/authApi';
 
@@ -32,7 +32,7 @@ interface ProfileScreenProps {
 
 export default function ProfileScreen({
   currentUser,
-  trips,
+  trips = [],
   onNavigateToTrip,
   onNavigateToVehicles,
   onNavigateToChangePwd,
@@ -46,15 +46,15 @@ export default function ProfileScreen({
   const { themeMode, isDark, toggleTheme, setThemeMode, colors } = useTheme();
   const [profileTab, setProfileTab] = useState<'saved' | 'created'>('saved');
 
-  const savedTrips = mockTripsData.filter((t) => savedTripIds.includes(t.id));
+  const savedTrips = trips.filter((t) => savedTripIds.includes(t.id));
 
   const avatarUrl =
     currentUser?.avatar ||
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80';
-  const displayName = currentUser?.name || 'Alex "Viper" Mercer';
+    'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=250&q=80';
+  const displayName = currentUser?.name || 'Rider';
   const roleText = currentUser?.role || t('pro');
   const bioText = currentUser?.bio || t('riderBio');
-  const pointCount = currentUser?.point != null ? currentUser.point : 1250;
+  const pointCount = currentUser?.point != null ? currentUser.point : 0;
 
   const handleLogoutPrompt = () => {
     Alert.alert(
@@ -99,15 +99,6 @@ export default function ProfileScreen({
               <FontAwesome6 name="bolt" size={8} color="#FFFFFF" />
             </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.settingsBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-            onPress={onNavigateToChangePwd}
-            activeOpacity={0.8}
-          >
-            <AntDesign name="setting" size={13} color={colors.mBlue} />
-            <Text style={[styles.settingsBtnText, { color: colors.text }]}>{t('settings')}</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -471,22 +462,6 @@ const styles = StyleSheet.create({
     borderColor: '#0B0F17',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  settingsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  settingsBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#CBD5E1',
   },
   infoSection: {
     gap: 4,

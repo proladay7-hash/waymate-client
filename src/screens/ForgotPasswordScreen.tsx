@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TextInput,
+  TextInputInstance,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -39,7 +40,7 @@ export default function ForgotPasswordScreen({
   const [isExpired, setIsExpired] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRefs = useRef<(TextInputInstance | null)[]>([]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;

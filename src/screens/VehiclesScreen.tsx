@@ -94,7 +94,7 @@ export default function VehiclesScreen({
           date: today,
           odoKm: odoNum,
           costVnd: '0 VND',
-          notes: 'Registered in Waymate Garage',
+          notes: 'Registered in WayMate Garage',
         },
       ],
     };
@@ -120,7 +120,7 @@ export default function VehiclesScreen({
       const res = await createMaintenanceHistoryApi(quickOilVeh.id, {
         name: 'Engine Oil & Filter Replacement',
         total: 850000,
-        location: 'Waymate Quick Service Tracker',
+        location: 'WayMate Quick Service Tracker',
         maintenanceRequests: [
           {
             name: 'Engine Oil Replacement',
@@ -153,7 +153,7 @@ export default function VehiclesScreen({
           date: today,
           odoKm: odoNum,
           costVnd: '850,000 VND',
-          notes: 'Fresh synthetic oil replacement logged via Waymate Tracker',
+          notes: 'Fresh synthetic oil replacement logged via WayMate Tracker',
         },
         ...quickOilVeh.serviceHistory,
       ],

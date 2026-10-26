@@ -17,7 +17,7 @@ import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import { useLanguage } from '../context/LanguageContext';
 import { useUserLocation } from '../context/LocationContext';
 import { useTheme } from '../context/ThemeContext';
-import { mockTripsData, TripData, DestinationCoord } from '../data/mockTrips';
+import { TripData, DestinationCoord } from '../data/mockTrips';
 import { openGoogleMapsNavigation, openGoogleMapsLinkOrCoords } from '../utils/mapUtils';
 
 interface HomeScreenProps {
@@ -158,7 +158,7 @@ export default function HomeScreen({
       riderAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
       riderBadge: 'Trail Blazer',
       riderBadgeVie: 'Dẫn đầu đoàn',
-      bikeModel: 'Waymate Explorer',
+      bikeModel: 'WayMate Explorer',
       distanceKm: dist,
       avgVelocityKmh: 60,
       maxVelocityKmh: 95,
@@ -217,7 +217,7 @@ export default function HomeScreen({
     }
   };
 
-  const allTrips = trips && trips.length > 0 ? trips : mockTripsData;
+  const allTrips = trips || [];
   const filteredTrips =
     selectedCategory === 'all'
       ? allTrips

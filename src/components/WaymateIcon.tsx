@@ -18,8 +18,8 @@ export interface WaymateIconProps {
 }
 
 /**
- * Waymate Custom Route Logo
- * Custom drawing representing the WayMate route with W and M between two GPS location pins.
+ * Waymate Custom Square Route Logo
+ * Compact, square-proportioned icon with tight W and M peaks between departure and arrival GPS pins.
  */
 export default function WaymateIcon({
   width,
@@ -28,13 +28,16 @@ export default function WaymateIcon({
   color = '#FFFFFF',
   useGradient = false,
   gradientColors = ['#00A3E0', '#0066B1', '#E20613'],
-  strokeWidth = 12,
+  strokeWidth = 7,
 }: WaymateIconProps) {
-  // Original bounds: 26 to 506 (w: 480), 32 to 232 (h: 200) -> Aspect ratio = 2.4 : 1
-  const computedHeight = height ?? (size ? size : 20);
-  const computedWidth = width ?? (size ? size * 2.4 : computedHeight * 2.4);
+  const computedSize = size ?? 24;
+  const computedWidth = width ?? computedSize;
+  const computedHeight = height ?? (width && !height ? width : computedSize);
 
-  const strokeColor = useGradient ? 'url(#wmIconGrad)' : color;
+  // Normalize strokeWidth to match 100x100 viewBox coordinate scale
+  const effectiveStrokeWidth = strokeWidth > 10 ? strokeWidth * 0.5 : strokeWidth;
+
+  const strokeColor = useGradient ? 'url(#wmSquareIconGrad)' : color;
   const startDotColor = useGradient ? gradientColors[0] : color;
   const endDotColor = useGradient ? gradientColors[2] : color;
 
@@ -42,12 +45,12 @@ export default function WaymateIcon({
     <Svg
       width={computedWidth}
       height={computedHeight}
-      viewBox="26 32 480 200"
+      viewBox="0 0 100 100"
       fill="none"
     >
       {useGradient && (
         <Defs>
-          <SvgLinearGradient id="wmIconGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <SvgLinearGradient id="wmSquareIconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={gradientColors[0]} />
             <Stop offset="50%" stopColor={gradientColors[1]} />
             <Stop offset="100%" stopColor={gradientColors[2]} />
@@ -55,34 +58,34 @@ export default function WaymateIcon({
         </Defs>
       )}
 
-      {/* Left Location Pin */}
+      {/* Start Location Pin (Top-Left) */}
       <Path
-        d="M 61 40 C 46.5 40 35 51.5 35 66 C 35 83 48.5 97 61 107 C 73.5 97 87 83 87 66 C 87 51.5 75.5 40 61 40 Z"
+        d="M 18 12 C 12 12 7 17 7 23 C 7 30 13 36 18 42 C 23 36 29 30 29 23 C 29 17 24 12 18 12 Z"
         stroke={strokeColor}
-        strokeWidth={strokeWidth}
+        strokeWidth={effectiveStrokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx="61" cy="66" r="7.5" fill={startDotColor} />
+      <Circle cx="18" cy="23" r="3" fill={startDotColor} />
 
-      {/* Continuous Route line forming W and M */}
+      {/* Tight, Connected Route line forming W and M */}
       <Path
-        d="M 61 107 C 65 111 72 112 80 112 L 105 112 C 118 114 127 126 133 145 L 145 185 C 149 208 153 222 160 222 C 167 222 171 205 175 185 L 183 148 C 186 131 192 126 198 126 C 204 126 208 133 211 148 L 220 188 C 224 208 227 221 234 221 C 241 221 247 203 254 175 L 274 98 C 278 81 284 75 290 75 C 297 75 303 83 307 98 L 321 145 C 325 159 329 167 334 167 C 340 167 344 159 348 145 L 362 98 C 366 81 372 75 378 75 C 385 75 391 83 395 98 L 409 170 C 413 195 420 221 433 221 L 458 221"
+        d="M 18 42 C 20 56 23 72 26 82 C 29 72 32 58 34 48 C 36 58 39 72 42 82 C 45 66 47 38 50 22 C 54 36 57 46 61 54 C 65 46 68 36 72 22 C 76 34 79 48 82 58"
         stroke={strokeColor}
-        strokeWidth={strokeWidth}
+        strokeWidth={effectiveStrokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
 
-      {/* Right Location Pin */}
+      {/* End Destination Pin (Bottom-Right) */}
       <Path
-        d="M 458 221 C 445 203 445 188 445 176 C 445 162.7 455.7 152 469 152 C 482.3 152 493 162.7 493 176 C 493 196 478 212 458 221 Z"
+        d="M 82 58 C 76 58 71 63 71 69 C 71 76 77 82 82 88 C 87 82 93 76 93 69 C 93 63 88 58 82 58 Z"
         stroke={strokeColor}
-        strokeWidth={strokeWidth}
+        strokeWidth={effectiveStrokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Circle cx="469" cy="176" r="7.5" fill={endDotColor} />
+      <Circle cx="82" cy="69" r="3" fill={endDotColor} />
     </Svg>
   );
 }

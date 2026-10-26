@@ -22,9 +22,14 @@ import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import VehiclesScreen from './src/screens/VehiclesScreen';
-import { initialVehicles, Vehicle } from './src/data/mockVehicles';
-import { mockTripsData, TripData } from './src/data/mockTrips';
+import ChatListScreen from './src/screens/ChatListScreen';
+import ChatRoomScreen from './src/screens/ChatRoomScreen';
+import { Vehicle } from './src/data/mockVehicles';
+import { TripData } from './src/data/mockTrips';
+import { fetchTripsApi, createTripApi } from './src/services/tripApi';
 import { UserDto, setAuthToken } from './src/services/authApi';
+import { ChatRoomDto, getOrCreateDirectRoom, fetchUserRooms } from './src/services/chatApi';
+import { chatWs } from './src/services/chatWs';
 import {
   fetchVehiclesWithMaintenance,
   createVehicleApi,
@@ -33,6 +38,18 @@ import {
   createMaintenanceHistoryApi,
 } from './src/services/vehicleApi';
 import LaunchLoadingScreen from './src/components/LaunchLoadingScreen';
+import * as Notifications from 'expo-notifications';
+import AIChatModal from './src/components/AIChatModal';
+import DraggableFloatingActions from './src/components/DraggableFloatingActions';
+import SosEmergencyModal from './src/components/SosEmergencyModal';
+import NotificationModal from './src/components/NotificationModal';
+import SosDetailScreen from './src/screens/SosDetailScreen';
+import { SosResponseDto } from './src/services/sosApi';
+import {
+  requestNotificationPermission,
+  fetchUnreadCountApi,
+  triggerLocalPhoneNotification,
+} from './src/services/notificationService';
 
 export type ToastType = 'success' | 'info' | 'error';
 
@@ -55,15 +72,204 @@ function MainApp() {
   // First Launch Loading Screen State
   const [isFirstLaunchLoading, setIsFirstLaunchLoading] = useState(true);
 
-  // Vehicles & Maintenance Tracker State
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+  // AI Agent Chatbot Modal State
+  const [isChatModalVisible, setIsChatModalVisible] = useState(false);
 
-  // Trips Feed & Google Maps Destinations State
-  const [trips, setTrips] = useState<TripData[]>(mockTripsData);
+  // SOS Emergency & Notifications State
+  const [isSosModalVisible, setIsSosModalVisible] = useState(false);
+  const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [selectedSosId, setSelectedSosId] = useState<string | undefined>(undefined);
+  const [selectedSosData, setSelectedSosData] = useState<Partial<SosResponseDto> | null>(null);
+
+  // Request phone notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  // Request notification permissions on startup and listen for notifications
+  useEffect(() => {
+    requestNotificationPermission();
+
+    let sub: any;
+    try {
+      if (Notifications && typeof Notifications.addNotificationResponseReceivedListener === 'function') {
+        sub = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = (response.notification.request.content.data || {}) as Record<string, any>;
+          if (data?.type === 'SOS' || data?.sosId) {
+            const sosId = (data.sosId as string) || 'sos-demo-1';
+            setSelectedSosId(sosId);
+            setSelectedSosData({
+              id: sosId,
+              name: response.notification.request.content.title || 'Emergency Roadside Alert',
+              location: data.location || 'Current GPS Location',
+              latitude: typeof data.lat === 'number' ? data.lat : 11.9056,
+              longitude: typeof data.lng === 'number' ? data.lng : 108.4412,
+              phoneNumber: data.phone || '0901234567',
+              bikeInfo: data.bikeInfo || 'Motorcycle (Plate details not registered)',
+              userName: data.senderName || 'Rider in Need',
+              userAvatar: data.senderAvatar,
+            });
+            setCurrentScreen('sosdetail');
+          } else if (data?.roomId) {
+            setCurrentScreen('chat');
+          }
+        });
+      }
+    } catch (e) {
+      console.log('[App] Notification listener deferred:', e);
+    }
+    return () => {
+      if (sub && typeof sub.remove === 'function') {
+        sub.remove();
+      }
+    };
+  }, []);
+
+  // Poll / refresh unread notification count when user is logged in
+  useEffect(() => {
+    if (currentUser) {
+      fetchUnreadCountApi(currentUser.id).then(setUnreadNotificationCount);
+      const interval = setInterval(() => {
+        fetchUnreadCountApi(currentUser.id).then(setUnreadNotificationCount);
+      }, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  // Vehicles & Maintenance Tracker State (loaded dynamically from Neo4j)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+
+  // Trips Feed & Google Maps Destinations State (loaded dynamically from Neo4j)
+  const [trips, setTrips] = useState<TripData[]>([]);
 
   // Selected Trip & Saved favorites
   const [selectedTripId, setSelectedTripId] = useState<string>('trip-1');
-  const [savedTripIds, setSavedTripIds] = useState<string[]>(['trip-1']);
+  const [savedTripIds, setSavedTripIds] = useState<string[]>([]);
+
+  // Load adventure trips from Neo4j database on mount
+  useEffect(() => {
+    fetchTripsApi().then((data) => {
+      setTrips(data);
+      if (data.length > 0) {
+        setSelectedTripId(data[0].id);
+      }
+    });
+  }, []);
+
+  // Active Chat Room State (for entering 1-on-1 or group chat)
+  const [activeChatRoom, setActiveChatRoom] = useState<ChatRoomDto | null>(null);
+
+  // Unread chat messages counter for bottom tab bar
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
+
+  // Refs to read latest active room and screen inside listener without re-binding
+  const activeChatRoomRef = useRef<ChatRoomDto | null>(null);
+  activeChatRoomRef.current = activeChatRoom;
+  const currentScreenRef = useRef<ScreenId>(currentScreen);
+  currentScreenRef.current = currentScreen;
+
+  // Connect / disconnect WebSocket on authentication state change & track unread messages
+  useEffect(() => {
+    if (currentUser) {
+      requestNotificationPermission();
+      chatWs.connect(currentUser.id, currentUser.name);
+
+      // Load initial unread messages count across user's rooms
+      fetchUserRooms(currentUser.id).then((rooms: ChatRoomDto[]) => {
+        const total = rooms.reduce((acc: number, r: ChatRoomDto) => acc + (r.unreadCount || 0), 0);
+        setUnreadChatCount(total);
+      });
+
+      // Increment unread count on incoming messages from others & trigger phone push notification
+      const removeMsgListener = chatWs.addMessageListener((incoming) => {
+        const isViewing =
+          currentScreenRef.current === 'chat' &&
+          activeChatRoomRef.current?.id === incoming.roomId;
+
+        if (incoming.senderId !== currentUser.id && !isViewing) {
+          setUnreadChatCount((prev) => prev + 1);
+
+          // Push notification on user's phone with sender avatar and name
+          const snippet =
+            incoming.content ||
+            (incoming.type === 'IMAGE'
+              ? '📷 Sent a photo'
+              : incoming.type === 'LOCATION'
+              ? '📍 Shared a GPS location'
+              : incoming.type === 'TRIP'
+              ? '🏍️ Shared a trip'
+              : 'Sent an attachment');
+
+          triggerLocalPhoneNotification(
+            incoming.senderName || 'Rider',
+            snippet,
+            {
+              roomId: incoming.roomId,
+              messageId: incoming.id,
+              senderId: incoming.senderId,
+              senderName: incoming.senderName,
+              senderAvatar: incoming.senderAvatar,
+            },
+            'chat-messages',
+            incoming.senderAvatar
+          );
+        }
+      });
+
+      // Listen to real-time emergency SOS alerts from other riders
+      const removeSosListener = chatWs.addSosListener((sos) => {
+        if (sos.senderId === currentUser.id) return;
+
+        // 1. Instantly increment the notification bell count badge
+        setUnreadNotificationCount((prev) => prev + 1);
+
+        // 2. Immediately trigger heads-up push notification banner on user's phone
+        const alertTitle = `🚨 SOS: ${sos.name || 'Emergency Assistance'}`;
+        const alertBody = `${sos.senderName || 'Nearby Rider'} needs help near ${sos.location || 'your area'}: "${sos.description || 'Assistance requested'}"`;
+
+        triggerLocalPhoneNotification(
+          alertTitle,
+          alertBody,
+          {
+            type: 'SOS',
+            sosId: sos.id,
+            lat: Number(sos.latitude) || 11.9404,
+            lng: Number(sos.longitude) || 108.4583,
+            location: sos.location || 'Current GPS Location',
+            phone: sos.phoneNumber || '0901234567',
+            bikeInfo: sos.bikeInfo || 'Motorcycle',
+            senderName: sos.senderName || 'Rider in Need',
+            senderAvatar: sos.senderAvatar,
+          },
+          'emergency-sos',
+          sos.senderAvatar
+        );
+
+        // 3. Show prominent toast
+        showToast(`🚨 ${sos.senderName || 'Rider'} sent an emergency SOS near ${sos.location || 'your location'}!`, 'error');
+      });
+
+      return () => {
+        removeMsgListener();
+        removeSosListener();
+      };
+    } else {
+      chatWs.disconnect();
+      setUnreadChatCount(0);
+    }
+  }, [currentUser]);
+
+  const handleOpenDirectChat = async (otherUserId: string, otherUserName: string, otherAvatar?: string) => {
+    if (!currentUser) return;
+    try {
+      const room = await getOrCreateDirectRoom(currentUser.id, otherUserId);
+      setActiveChatRoom(room);
+      setCurrentScreen('chat');
+    } catch (e) {
+      console.warn('[App] Failed to open direct chat:', e);
+    }
+  };
 
   // Global Animated Toast Banner
   const [toast, setToast] = useState<ToastState>({
@@ -161,7 +367,7 @@ function MainApp() {
         try {
           await createMaintenanceHistoryApi(created.id, {
             name: initRec.serviceItem,
-            location: initRec.notes || 'Waymate Garage',
+            location: initRec.notes || 'WayMate Garage',
             total: 0,
             maintenanceRequests: [
               {
@@ -222,10 +428,16 @@ function MainApp() {
     }
   };
 
-  // Trips management & Add New Trip
-  const handleAddTrip = (newTrip: TripData) => {
-    setTrips((prev) => [newTrip, ...prev]);
-    showToast(t('tripPostedSuccess'), 'success');
+  // Trips management & Add New Trip to database
+  const handleAddTrip = async (newTrip: TripData) => {
+    try {
+      const saved = await createTripApi(newTrip);
+      setTrips((prev) => [saved, ...prev]);
+      showToast(t('tripPostedSuccess'), 'success');
+    } catch {
+      setTrips((prev) => [newTrip, ...prev]);
+      showToast(t('tripPostedSuccess'), 'success');
+    }
   };
 
   const handleSelectTrip = (tripId: string) => {
@@ -235,7 +447,13 @@ function MainApp() {
 
   // Back handler based on current active screen
   const handleBack = () => {
-    if (currentScreen === 'trip') {
+    if (currentScreen === 'chat' && activeChatRoom) {
+      setActiveChatRoom(null);
+    } else if (currentScreen === 'chat') {
+      setCurrentScreen('home');
+    } else if (currentScreen === 'trip') {
+      setCurrentScreen('home');
+    } else if (currentScreen === 'sosdetail') {
       setCurrentScreen('home');
     } else if (currentScreen === 'forgot') {
       setCurrentScreen('login');
@@ -243,6 +461,8 @@ function MainApp() {
       setCurrentScreen('profile');
     }
   };
+
+  const isInsideChatRoom = currentScreen === 'chat' && !!activeChatRoom;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -255,15 +475,20 @@ function MainApp() {
         <View style={[styles.ambientGlow, styles.glowNavy, { backgroundColor: colors.ambientGlowNavy }]} />
       </View>
 
-      {/* Header Bar */}
-      <TopBar
-        currentScreen={currentScreen}
-        onNavigate={(screen) => setCurrentScreen(screen)}
-        onBack={handleBack}
-        isLoggedIn={isLoggedIn}
-        onLogout={handleLogout}
-        showToast={showToast}
-      />
+      {/* Header Bar - Hidden in active chat room which has its own dedicated header */}
+      {!isInsideChatRoom && (
+        <TopBar
+          currentScreen={currentScreen}
+          onNavigate={(screen) => setCurrentScreen(screen)}
+          onBack={handleBack}
+          isLoggedIn={isLoggedIn}
+          onLogout={handleLogout}
+          onOpenChat={() => setIsChatModalVisible(true)}
+          onOpenNotifications={() => setIsNotificationModalVisible(true)}
+          unreadNotificationCount={unreadNotificationCount}
+          showToast={showToast}
+        />
+      )}
 
       {/* Screen Body - Exactly 1 page visible at a time */}
       <View style={styles.bodyContainer}>
@@ -339,13 +564,55 @@ function MainApp() {
             showToast={showToast}
           />
         )}
+
+        {/* Real-time Messenger / Chat System */}
+        {isLoggedIn && currentScreen === 'chat' && (
+          activeChatRoom ? (
+            <ChatRoomScreen
+              room={activeChatRoom}
+              currentUser={currentUser}
+              onBack={() => setActiveChatRoom(null)}
+              onNavigateToTrip={handleSelectTrip}
+              showToast={showToast}
+            />
+          ) : (
+            <ChatListScreen
+              currentUser={currentUser}
+              onSelectRoom={(room) => {
+                setActiveChatRoom(room);
+                setUnreadChatCount((prev) => Math.max(0, prev - (room.unreadCount || 0)));
+              }}
+              onUnreadCountSync={(total) => {
+                setUnreadChatCount(total);
+              }}
+              showToast={showToast}
+            />
+          )
+        )}
+
+        {/* Emergency SOS Details Screen */}
+        {isLoggedIn && currentScreen === 'sosdetail' && (
+          <SosDetailScreen
+            sosId={selectedSosId}
+            initialSosData={selectedSosData}
+            currentUser={currentUser}
+            onBack={handleBack}
+            onOpenDirectChat={(otherUserId, otherUserName, otherAvatar) => {
+              handleOpenDirectChat(otherUserId, otherUserName, otherAvatar);
+            }}
+            showToast={showToast}
+          />
+        )}
       </View>
 
-      {/* Persistent Bottom App Navigation Bar (Shown when user is logged in) */}
-      {isLoggedIn && (
+      {/* Persistent Bottom App Navigation Bar (Hidden when inside active chat conversation) */}
+      {isLoggedIn && !isInsideChatRoom && (
         <BottomNav
           currentScreen={currentScreen}
-          onNavigate={(screen) => setCurrentScreen(screen)}
+          onNavigate={(screen) => {
+            setCurrentScreen(screen);
+          }}
+          unreadChatCount={unreadChatCount}
         />
       )}
 
@@ -391,6 +658,73 @@ function MainApp() {
           </View>
         </Animated.View>
       )}
+
+      {/* Draggable & Collapsible Floating Actions (Hidden inside active chat room) */}
+      {isLoggedIn && !isInsideChatRoom && (
+        <DraggableFloatingActions
+          onPressChat={() => setIsChatModalVisible(true)}
+          onPressSos={() => setIsSosModalVisible(true)}
+          unreadChatCount={unreadChatCount}
+        />
+      )}
+
+      {/* Emergency SOS Roadside Assistance Modal */}
+      <SosEmergencyModal
+        visible={isSosModalVisible}
+        onClose={() => setIsSosModalVisible(false)}
+        currentUser={currentUser}
+        showToast={showToast}
+      />
+
+      {/* User Notification Center Modal */}
+      <NotificationModal
+        visible={isNotificationModalVisible}
+        onClose={() => {
+          setIsNotificationModalVisible(false);
+          if (currentUser) {
+            fetchUnreadCountApi(currentUser.id).then(setUnreadNotificationCount);
+          }
+        }}
+        currentUser={currentUser}
+        onSelectNotification={(notif) => {
+          setIsNotificationModalVisible(false);
+          if (notif.type === 'CHAT_MESSAGE') {
+            setCurrentScreen('chat');
+          } else if (notif.type === 'SOS') {
+            let meta: any = {};
+            try {
+              if (notif.metadataJson) meta = JSON.parse(notif.metadataJson);
+            } catch (e) {}
+
+            const sosId = meta.sosId || notif.referenceId || 'sos-demo-1';
+            setSelectedSosId(sosId);
+            setSelectedSosData({
+              id: sosId,
+              name: notif.title.replace(/^🚨\s*(SOS EMERGENCY:\s*)?/i, ''),
+              userName: notif.senderName || 'Rider in Need',
+              userAvatar: notif.senderAvatar,
+              location: meta.location || 'Current GPS Location',
+              latitude: typeof meta.lat === 'number' ? meta.lat : 11.9056,
+              longitude: typeof meta.lng === 'number' ? meta.lng : 108.4412,
+              phoneNumber: meta.phone || '0901234567',
+              bikeInfo: meta.bikeInfo || 'Motorcycle (Plate details not registered)',
+              distanceKm: typeof meta.distanceKm === 'number' ? meta.distanceKm : 3.2,
+              description: notif.content,
+              createdAt: notif.createdAt,
+            });
+            setCurrentScreen('sosdetail');
+          } else {
+            setCurrentScreen('home');
+          }
+        }}
+      />
+
+      {/* Interactive AI Agent Chat Modal */}
+      <AIChatModal
+        visible={isChatModalVisible}
+        onClose={() => setIsChatModalVisible(false)}
+        showToast={showToast}
+      />
 
       {/* Fullscreen Initial Launch Splash Screen - Placed last so it is 100% on top of all screens with solid backdrop */}
       {isFirstLaunchLoading && (

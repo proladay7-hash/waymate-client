@@ -171,7 +171,7 @@ export default function LoginScreen({
               style={styles.logoGradientBorder}
             >
               <View style={[styles.logoInner, { backgroundColor: colors.surface }]}>
-                <WaymateIcon width={40} height={17} strokeWidth={14} color={colors.mBlue} />
+                <WaymateIcon size={34} strokeWidth={7} color={colors.mBlue} />
               </View>
             </LinearGradient>
             <View style={styles.appNameRow}>
@@ -628,14 +628,14 @@ export default function LoginScreen({
               {t('agreeTerms')}{' '}
               <Text
                 style={[styles.footerLink, { color: colors.mBlue }]}
-                onPress={() => showToast('Waymate Terms of Service', 'info')}
+                onPress={() => showToast('WayMate Terms of Service', 'info')}
               >
                 {t('terms')}
               </Text>{' '}
               &{' '}
               <Text
                 style={[styles.footerLink, { color: colors.mBlue }]}
-                onPress={() => showToast('Waymate Privacy Policy', 'info')}
+                onPress={() => showToast('WayMate Privacy Policy', 'info')}
               >
                 {t('privacy')}
               </Text>
@@ -677,9 +677,9 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   logoGradientBorder: {
-    width: 60,
-    height: 44,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     padding: 2.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   logoInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 11.5,
+    borderRadius: 13.5,
     alignItems: 'center',
     justifyContent: 'center',
   },

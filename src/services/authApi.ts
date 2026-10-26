@@ -175,7 +175,7 @@ export async function signupApi(payload: SignupPayload): Promise<AuthResponse> {
           email: payload.email,
           avatar: payload.avatar || DEFAULT_FALLBACK_USER.avatar,
           point: 100,
-          bio: payload.bio || 'New Waymate Explorer',
+          bio: payload.bio || 'New WayMate Explorer',
           role: 'USER',
           status: 'ACTIVE',
         },
