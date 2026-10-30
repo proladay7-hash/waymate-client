@@ -120,18 +120,26 @@ export default function ChatRoomScreen({
       if (isMounted) {
         setMessages(history);
         setLoading(false);
+        const myIdLower = String(myId || '').trim().toLowerCase();
         // Mark unread messages as read (brief delay lets user notice unread bold state, then removes bold like Messenger)
-        const hasUnread = history.some((m) => m.senderId !== myId && m.status !== 'READ');
+        const hasUnread = history.some((m) => {
+          const senderLower = String(m.senderId || '').trim().toLowerCase();
+          return senderLower && senderLower !== myIdLower && m.status !== 'READ';
+        });
         if (hasUnread) {
           setTimeout(() => {
             if (!isMounted) return;
             setMessages((prev) =>
-              prev.map((m) => (m.senderId !== myId && m.status !== 'READ' ? { ...m, status: 'READ' } : m))
+              prev.map((m) => {
+                const senderLower = String(m.senderId || '').trim().toLowerCase();
+                return senderLower && senderLower !== myIdLower && m.status !== 'READ' ? { ...m, status: 'READ' } : m;
+              })
             );
-          }, 1200);
+          }, 800);
 
           history.forEach((m) => {
-            if (m.senderId !== myId && m.status !== 'READ') {
+            const senderLower = String(m.senderId || '').trim().toLowerCase();
+            if (senderLower && senderLower !== myIdLower && m.status !== 'READ') {
               updateMessageStatusApi(m.id, 'READ', myId);
               chatWs.sendStatusUpdate(m.id, room.id, 'READ', myId);
             }
@@ -143,16 +151,21 @@ export default function ChatRoomScreen({
     // Join room over WebSocket
     chatWs.joinRoom(room.id, myId, myName);
 
+    const myIdLower = String(myId || '').trim().toLowerCase();
+    const currentRoomIdLower = String(room.id || '').trim().toLowerCase();
+
     // Listen to incoming messages
     const removeMsgListener = chatWs.addMessageListener((incoming) => {
-      if (incoming.roomId === room.id) {
+      const incomingRoomIdLower = String(incoming.roomId || '').trim().toLowerCase();
+      if (incomingRoomIdLower === currentRoomIdLower) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === incoming.id)) return prev;
           return [...prev, incoming];
         });
 
         // Mark incoming message as read if from others (no phone push notification inside active chat room)
-        if (incoming.senderId !== myId) {
+        const incomingSenderLower = String(incoming.senderId || '').trim().toLowerCase();
+        if (incomingSenderLower && incomingSenderLower !== myIdLower) {
           chatWs.sendStatusUpdate(incoming.id, room.id, 'READ', myId);
         }
       }

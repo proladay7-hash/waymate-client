@@ -51,6 +51,12 @@ function formatPostTime(iso?: string) {
 
 interface SocialFeedScreenProps {
   currentUser: UserDto | null;
+  trips?: TripData[];
+  savedTripIds?: string[];
+  preSelectedTripId?: string | null;
+  onClearPreSelectedTrip?: () => void;
+  joinRequests?: Record<string, 'pending' | 'accepted'>;
+  onRequestJoinTrip?: (tripId: string, tripTitle: string, organizerName: string) => void;
   onNavigateToTrip?: (tripId: string) => void;
   onOpenDirectChat?: (otherUserId: string, otherUserName: string, otherAvatar?: string) => void;
   showToast?: (msg: string, type?: 'success' | 'info') => void;
@@ -58,12 +64,18 @@ interface SocialFeedScreenProps {
 
 export default function SocialFeedScreen({
   currentUser,
+  trips = [],
+  savedTripIds = [],
+  preSelectedTripId,
+  onClearPreSelectedTrip,
+  joinRequests = {},
+  onRequestJoinTrip,
   onNavigateToTrip,
   onOpenDirectChat,
   showToast,
 }: SocialFeedScreenProps) {
   const { colors, isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { userLocation } = useUserLocation();
 
   const [posts, setPosts] = useState<PostDto[]>([]);
@@ -78,6 +90,7 @@ export default function SocialFeedScreen({
 
   // Modals for post attachments
   const [showTripModal, setShowTripModal] = useState(false);
+  const [tripPickerTab, setTripPickerTab] = useState<'all' | 'personal' | 'saved'>('personal');
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoUrlInput, setPhotoUrlInput] = useState('');
 
@@ -135,10 +148,43 @@ export default function SocialFeedScreen({
   const myName = currentUser?.name || 'Rider';
   const myAvatar = currentUser?.avatar;
 
-  const [availableTrips, setAvailableTrips] = useState<TripData[]>([]);
+  const [availableTrips, setAvailableTrips] = useState<TripData[]>(trips.length > 0 ? trips : []);
   useEffect(() => {
-    fetchTripsApi().then(setAvailableTrips);
-  }, []);
+    if (trips && trips.length > 0) {
+      setAvailableTrips(trips);
+    } else {
+      fetchTripsApi().then(setAvailableTrips);
+    }
+  }, [trips]);
+
+  useEffect(() => {
+    if (preSelectedTripId) {
+      setComposerTripId(preSelectedTripId);
+      if (onClearPreSelectedTrip) onClearPreSelectedTrip();
+      if (showToast) {
+        showToast(language === 'VIE' ? 'Đã đính kèm chuyến đi vào bài viết! 🏍️' : 'Trip attached to new post! 🏍️', 'info');
+      }
+    }
+  }, [preSelectedTripId]);
+
+  const personalTrips = useMemo(() => {
+    return availableTrips.filter(
+      (t) =>
+        (t as any).isPersonal ||
+        (myId && (t as any).authorId === myId) ||
+        (t.riderName && (t.riderName === myName || t.riderName.startsWith('You')))
+    );
+  }, [availableTrips, myId, myName]);
+
+  const savedTrips = useMemo(() => {
+    return availableTrips.filter((t) => savedTripIds.includes(t.id));
+  }, [availableTrips, savedTripIds]);
+
+  const modalTripsList = useMemo(() => {
+    if (tripPickerTab === 'personal') return personalTrips;
+    if (tripPickerTab === 'saved') return savedTrips;
+    return availableTrips;
+  }, [tripPickerTab, personalTrips, savedTrips, availableTrips]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -185,18 +231,6 @@ export default function SocialFeedScreen({
 
   // Toggle Like
   const handleToggleLike = async (postId: string) => {
-    const targetPost = posts.find((p) => p.id === postId);
-    const wasLiked = targetPost ? targetPost.likedByUserIds.includes(myId) : false;
-
-    if (!wasLiked) {
-      triggerLocalPhoneNotification(
-        '❤️ Post Liked',
-        `You liked ${targetPost?.authorName ? `${targetPost.authorName}'s post` : 'a post'}. Notification saved!`,
-        { postId, type: 'POST_LIKE' },
-        'social-alerts'
-      );
-    }
-
     try {
       const updated = await toggleLikePostApi(postId, myId);
       setPosts(posts.map((p) => (p.id === postId ? updated : p)));
@@ -268,17 +302,6 @@ export default function SocialFeedScreen({
   // Toggle Like on Comment
   const handleToggleCommentLike = async (commentId: string) => {
     if (!activeCommentPostId) return;
-    const target = comments.find((c) => c.id === commentId);
-    const wasLiked = target?.likedByUserIds?.includes(myId);
-
-    if (!wasLiked) {
-      triggerLocalPhoneNotification(
-        '❤️ Comment Liked',
-        `You liked ${target?.authorName ? `${target.authorName}'s comment` : 'a comment'}.`,
-        { commentId, postId: activeCommentPostId, type: 'COMMENT_LIKE' },
-        'social-alerts'
-      );
-    }
 
     try {
       const updated = await toggleLikeCommentApi(activeCommentPostId, commentId, myId);
@@ -309,24 +332,7 @@ export default function SocialFeedScreen({
     setCommentInput('');
     setReplyingTo(null);
 
-    const targetPost = posts.find((p) => p.id === activeCommentPostId);
-
-    // Push local notification on user's phone for comment / reply
-    if (currentReply) {
-      triggerLocalPhoneNotification(
-        '💬 Reply Sent',
-        `You replied to @${currentReply.authorName}: "${text.length > 45 ? text.substring(0, 42) + '...' : text}"`,
-        { postId: activeCommentPostId, type: 'POST_COMMENT', replyTo: currentReply.authorName },
-        'social-alerts'
-      );
-    } else {
-      triggerLocalPhoneNotification(
-        '💬 Comment Posted',
-        `You commented on ${targetPost?.authorName ? `${targetPost.authorName}'s post` : 'a post'}: "${text.length > 45 ? text.substring(0, 42) + '...' : text}"`,
-        { postId: activeCommentPostId, type: 'POST_COMMENT' },
-        'social-alerts'
-      );
-    }
+    // Do not push notifications for self-sent replies or comments (avoids annoying "You replied to..." banners)
 
     try {
       const added = await addPostCommentApi(activeCommentPostId, {
@@ -358,14 +364,6 @@ export default function SocialFeedScreen({
 
   // Share Post
   const handleSharePost = async (postId: string) => {
-    const targetPost = posts.find((p) => p.id === postId);
-    triggerLocalPhoneNotification(
-      '🔁 Post Shared',
-      `You shared ${targetPost?.authorName ? `${targetPost.authorName}'s post` : 'a post'} to the community feed.`,
-      { postId, type: 'POST_SHARE' },
-      'social-alerts'
-    );
-
     await sharePostApi(postId);
     setPosts(
       posts.map((p) => (p.id === postId ? { ...p, shareCount: p.shareCount + 1 } : p))
@@ -425,7 +423,7 @@ export default function SocialFeedScreen({
         </View>
 
         {/* Selected Attachments Preview */}
-        {(composerMediaUrls.length > 0 || composerLocation || composerTripId) && (
+        {(composerMediaUrls.length > 0 || !!composerLocation || !!composerTripId) ? (
           <View style={styles.composerAttachmentsRow}>
             {composerLocation ? (
               <View style={[styles.tagPill, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
@@ -459,7 +457,7 @@ export default function SocialFeedScreen({
               </View>
             ))}
           </View>
-        )}
+        ) : null}
 
         {/* Composer Actions Toolbar */}
         <View style={[styles.composerToolbar, { borderTopColor: colors.border }]}>
@@ -561,7 +559,7 @@ export default function SocialFeedScreen({
                       <Text style={[styles.postTime, { color: colors.textMuted }]}>
                         {formatPostTime(post.createdAt)}
                       </Text>
-                      {post.locationName && (
+                      {post.locationName ? (
                         <View style={styles.locationTag}>
                           <Text style={{ color: colors.textMuted, fontSize: 10 }}>•</Text>
                           <FontAwesome6 name="location-dot" size={9} color="#EF4444" />
@@ -569,7 +567,7 @@ export default function SocialFeedScreen({
                             {post.locationName}
                           </Text>
                         </View>
-                      )}
+                      ) : null}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -592,7 +590,7 @@ export default function SocialFeedScreen({
               ) : null}
 
               {/* Media Gallery */}
-              {post.mediaUrls && post.mediaUrls.length > 0 && (
+              {post.mediaUrls && post.mediaUrls.length > 0 ? (
                 <View style={styles.mediaContainer}>
                   {post.mediaUrls.map((url, i) => (
                     <Image
@@ -606,27 +604,73 @@ export default function SocialFeedScreen({
                     />
                   ))}
                 </View>
-              )}
+              ) : null}
 
-              {/* Linked Trip Card */}
-              {attachedTrip && (
-                <TouchableOpacity
-                  style={[styles.linkedTripBox, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => onNavigateToTrip && onNavigateToTrip(attachedTrip.id)}
-                  activeOpacity={0.8}
-                >
-                  <Image source={{ uri: attachedTrip.coverImage }} style={styles.linkedTripImg} />
-                  <View style={styles.linkedTripInfo}>
-                    <Text style={[styles.linkedTripTitle, { color: colors.text }]}>
-                      {attachedTrip.title}
-                    </Text>
-                    <Text style={[styles.linkedTripDetails, { color: colors.textMuted }]}>
-                      {attachedTrip.distanceKm} km • {attachedTrip.duration} • {attachedTrip.category}
-                    </Text>
+              {/* Linked Trip Card with Join Request */}
+              {attachedTrip ? (
+                <View style={[styles.linkedTripContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <TouchableOpacity
+                    style={styles.linkedTripBox}
+                    onPress={() => onNavigateToTrip && onNavigateToTrip(attachedTrip.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Image source={{ uri: attachedTrip.coverImage }} style={styles.linkedTripImg} />
+                    <View style={styles.linkedTripInfo}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <FontAwesome6 name="route" size={11} color={colors.mBlue} />
+                        <Text style={[styles.linkedTripTitle, { color: colors.text }]} numberOfLines={1}>
+                          {attachedTrip.title}
+                        </Text>
+                      </View>
+                      <Text style={[styles.linkedTripDetails, { color: colors.textMuted }]} numberOfLines={1}>
+                        {attachedTrip.distanceKm} km • {attachedTrip.duration} • {attachedTrip.riderName}
+                      </Text>
+                    </View>
+                    <AntDesign name="right" size={13} color={colors.textMuted} />
+                  </TouchableOpacity>
+
+                  {/* Join Ride Bar */}
+                  <View style={[styles.linkedTripJoinBar, { borderTopColor: colors.border }]}>
+                    <View style={styles.linkedTripSeatsWrap}>
+                      <FontAwesome6 name="users" size={11} color={colors.textMuted} />
+                      <Text style={[styles.linkedTripSeatsText, { color: colors.textMuted }]}>
+                        {attachedTrip.groupSize || 'Group Ride'}
+                      </Text>
+                    </View>
+
+                    {post.authorId === myId || attachedTrip.riderName === myName || (attachedTrip as any).isPersonal ? (
+                      <View style={[styles.tripOrganizerBadge, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: colors.mBlue }]}>
+                        <FontAwesome6 name="crown" size={10} color={colors.mBlue} />
+                        <Text style={[styles.tripOrganizerBadgeText, { color: colors.mBlue }]}>
+                          {t('yourTripBadge')}
+                        </Text>
+                      </View>
+                    ) : joinRequests[attachedTrip.id] === 'pending' ? (
+                      <View style={[styles.tripJoinedBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: '#10B981' }]}>
+                        <AntDesign name="check" size={11} color="#10B981" />
+                        <Text style={[styles.tripJoinedBadgeText, { color: '#10B981' }]}>
+                          {t('joinRequestedBadge')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={[styles.requestJoinBtn, { backgroundColor: colors.mRed }]}
+                        onPress={() => {
+                          if (onRequestJoinTrip) {
+                            onRequestJoinTrip(attachedTrip.id, attachedTrip.title, attachedTrip.riderName);
+                          } else if (showToast) {
+                            showToast(t('joinSlotRequested'), 'success');
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <FontAwesome6 name="user-plus" size={11} color="#FFFFFF" />
+                        <Text style={styles.requestJoinBtnText}>{t('requestToJoin')}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <AntDesign name="right" size={14} color={colors.textMuted} />
-                </TouchableOpacity>
-              )}
+                </View>
+              ) : null}
 
               {/* Post Stats & Actions Bar */}
               <View style={[styles.actionBar, { borderTopColor: colors.border }]}>
@@ -894,13 +938,13 @@ export default function SocialFeedScreen({
                                             </View>
 
                                             {/* Tag badge */}
-                                            {reply.replyToUserName && (
+                                            {reply.replyToUserName ? (
                                               <View style={styles.replyingToBadge}>
                                                 <Text style={[styles.replyingToBadgeText, { color: colors.mBlue }]}>
                                                   @{reply.replyToUserName}
                                                 </Text>
                                               </View>
-                                            )}
+                                            ) : null}
 
                                             <Text style={[styles.commentText, { color: colors.text }]}>{reply.content}</Text>
                                           </View>
@@ -969,7 +1013,7 @@ export default function SocialFeedScreen({
             )}
 
             {/* Replying Banner */}
-            {replyingTo && (
+            {replyingTo ? (
               <View
                 style={[
                   styles.replyingToBar,
@@ -987,7 +1031,7 @@ export default function SocialFeedScreen({
                   <AntDesign name="close" size={14} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-            )}
+            ) : null}
 
             {/* Comment Input */}
             <View style={[styles.commentInputRow, { borderTopColor: colors.border }]}>
@@ -1028,31 +1072,102 @@ export default function SocialFeedScreen({
         <View style={styles.modalOverlay}>
           <View style={[styles.pickerSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.pickerHeader}>
-              <Text style={[styles.pickerTitle, { color: colors.text }]}>Attach Trip to Post</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <FontAwesome6 name="route" size={15} color={colors.mBlue} />
+                <Text style={[styles.pickerTitle, { color: colors.text }]}>{t('attachTripToPost')}</Text>
+              </View>
               <TouchableOpacity onPress={() => setShowTripModal(false)}>
                 <AntDesign name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-              {availableTrips.map((trip) => (
-                <TouchableOpacity
-                  key={trip.id}
-                  style={[styles.tripPickItem, { backgroundColor: colors.card, borderColor: colors.border }]}
-                  onPress={() => {
-                    setComposerTripId(trip.id);
-                    setShowTripModal(false);
-                  }}
+
+            {/* Segmented Tabs in Modal */}
+            <View style={[styles.modalTabRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TouchableOpacity
+                style={[
+                  styles.modalTabPill,
+                  tripPickerTab === 'personal' && [styles.modalTabPillActive, { backgroundColor: colors.mBlue }],
+                ]}
+                onPress={() => setTripPickerTab('personal')}
+              >
+                <Text
+                  style={[
+                    styles.modalTabPillText,
+                    { color: tripPickerTab === 'personal' ? '#FFFFFF' : colors.textMuted },
+                  ]}
                 >
-                  <Image source={{ uri: trip.coverImage }} style={styles.tripPickImg} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.tripPickTitle, { color: colors.text }]}>{trip.title}</Text>
-                    <Text style={{ fontSize: 11, color: colors.textMuted }}>
-                      {trip.distanceKm} km • {trip.duration}
-                    </Text>
-                  </View>
-                  <AntDesign name="check" size={14} color={composerTripId === trip.id ? colors.mBlue : 'transparent'} />
-                </TouchableOpacity>
-              ))}
+                  {t('personalTrips')} ({personalTrips.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalTabPill,
+                  tripPickerTab === 'saved' && [styles.modalTabPillActive, { backgroundColor: colors.mRed }],
+                ]}
+                onPress={() => setTripPickerTab('saved')}
+              >
+                <Text
+                  style={[
+                    styles.modalTabPillText,
+                    { color: tripPickerTab === 'saved' ? '#FFFFFF' : colors.textMuted },
+                  ]}
+                >
+                  {t('savedTrips')} ({savedTrips.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalTabPill,
+                  tripPickerTab === 'all' && [styles.modalTabPillActive, { backgroundColor: colors.surfaceElevated }],
+                ]}
+                onPress={() => setTripPickerTab('all')}
+              >
+                <Text
+                  style={[
+                    styles.modalTabPillText,
+                    { color: tripPickerTab === 'all' ? colors.text : colors.textMuted },
+                  ]}
+                >
+                  {t('exploreTrips')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingBottom: 20 }}>
+              {modalTripsList.length === 0 ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center', gap: 6 }}>
+                  <FontAwesome6 name="route" size={24} color={colors.textMuted} />
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                    {tripPickerTab === 'personal'
+                      ? t('noPersonalTrips')
+                      : tripPickerTab === 'saved'
+                      ? t('noSavedTrips')
+                      : 'No trips available'}
+                  </Text>
+                </View>
+              ) : (
+                modalTripsList.map((trip) => (
+                  <TouchableOpacity
+                    key={trip.id}
+                    style={[styles.tripPickItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                    onPress={() => {
+                      setComposerTripId(trip.id);
+                      setShowTripModal(false);
+                    }}
+                  >
+                    <Image source={{ uri: trip.coverImage }} style={styles.tripPickImg} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.tripPickTitle, { color: colors.text }]}>{trip.title}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                        {trip.distanceKm} km • {trip.duration} • {trip.riderName}
+                      </Text>
+                    </View>
+                    <AntDesign name="check" size={14} color={composerTripId === trip.id ? colors.mBlue : 'transparent'} />
+                  </TouchableOpacity>
+                ))
+              )}
             </ScrollView>
           </View>
         </View>
@@ -1631,5 +1746,86 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 13,
+  },
+  linkedTripContainer: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  linkedTripJoinBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+  },
+  linkedTripSeatsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  linkedTripSeatsText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tripOrganizerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  tripOrganizerBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  tripJoinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  tripJoinedBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  requestJoinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  requestJoinBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  modalTabRow: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 4,
+  },
+  modalTabPill: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  modalTabPillActive: {},
+  modalTabPillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

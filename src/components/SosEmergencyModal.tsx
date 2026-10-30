@@ -154,23 +154,6 @@ export default function SosEmergencyModal({
         bikeInfo: bikeInfo.trim() || 'Motorcycle',
       });
 
-      triggerLocalPhoneNotification(
-        `🚨 SOS Alert: ${selectedType}`,
-        `Broadcasted to all riders within 10km around ${locText}. Help is on the way!`,
-        {
-          type: 'SOS',
-          sosId: created.id,
-          location: created.location,
-          lat: created.latitude,
-          lng: created.longitude,
-          phone: created.phoneNumber,
-          bikeInfo: created.bikeInfo,
-          senderName: currentUser.name || 'You',
-          senderAvatar: currentUser.avatar,
-        },
-        'emergency-sos'
-      );
-
       if (showToast) {
         showToast('🚨 SOS broadcasted to all riders within 10km!', 'success');
       }

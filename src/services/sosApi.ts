@@ -46,13 +46,6 @@ export async function sendSosApi(payload: SosRequestPayload): Promise<SosRespons
 
     if (res.ok) {
       const saved: SosResponseDto = await res.json();
-      // Immediately trigger local phone notification feedback
-      await triggerLocalPhoneNotification(
-        '🚨 SOS Emergency Broadcasted!',
-        `Your assistance request "${payload.name}" was sent to all riders within 10km.`,
-        { sosId: saved.id },
-        'emergency-sos'
-      );
       return saved;
     }
   } catch (err) {
@@ -77,14 +70,6 @@ export async function sendSosApi(payload: SosRequestPayload): Promise<SosRespons
   };
 
   LOCAL_DEMO_SOS.unshift(localSos);
-
-  await triggerLocalPhoneNotification(
-    '🚨 SOS Emergency Broadcasted!',
-    `Your request "${payload.name}" was sent to nearby riders within 10km.`,
-    { sosId: localSos.id },
-    'emergency-sos'
-  );
-
   return localSos;
 }
 

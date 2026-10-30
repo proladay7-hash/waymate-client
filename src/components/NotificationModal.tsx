@@ -44,7 +44,14 @@ export default function NotificationModal({
     if (!currentUser) return;
     try {
       const data = await fetchNotificationsApi(currentUser.id);
-      setNotifications(data.filter((n) => n.type !== 'CHAT_MESSAGE'));
+      const currentUid = String(currentUser.id || '').trim().toLowerCase();
+      setNotifications(
+        data.filter(
+          (n) =>
+            n.type !== 'CHAT_MESSAGE' &&
+            (!n.senderId || String(n.senderId).trim().toLowerCase() !== currentUid)
+        )
+      );
     } catch {
       // Ignored
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -66,6 +66,8 @@ export default function ChatListScreen({
     }
   };
 
+  const processedRoomMsgIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     loadRooms();
   }, [currentUser]);
@@ -73,9 +75,22 @@ export default function ChatListScreen({
   // Real-time WebSocket subscription for live incoming messages & status updates
   useEffect(() => {
     const removeMsgListener = chatWs.addMessageListener((incoming) => {
+      if (!incoming || !incoming.id) return;
+      const alreadyProcessed = processedRoomMsgIdsRef.current.has(incoming.id);
+      if (!alreadyProcessed) {
+        processedRoomMsgIdsRef.current.add(incoming.id);
+        if (processedRoomMsgIdsRef.current.size > 300) {
+          const first = processedRoomMsgIdsRef.current.values().next().value;
+          if (first) processedRoomMsgIdsRef.current.delete(first);
+        }
+      }
+
       setRooms((prev) => {
-        const isFromOthers = incoming.senderId !== currentUser?.id;
-        const exists = prev.some((r) => r.id === incoming.roomId);
+        const senderIdStr = String(incoming.senderId || '').trim().toLowerCase();
+        const currentUserIdStr = String(currentUser?.id || '').trim().toLowerCase();
+        const isFromOthers = Boolean(senderIdStr && currentUserIdStr && senderIdStr !== currentUserIdStr);
+        const incomingRoomId = String(incoming.roomId || '').trim().toLowerCase();
+        const exists = prev.some((r) => String(r.id).trim().toLowerCase() === incomingRoomId);
 
         let snippet = incoming.content || 'Sent an attachment';
         if (incoming.type === 'IMAGE') snippet = '📷 Photo';
@@ -84,13 +99,14 @@ export default function ChatListScreen({
 
         if (exists) {
           const updated = prev.map((r) => {
-            if (r.id === incoming.roomId) {
+            if (String(r.id).trim().toLowerCase() === incomingRoomId) {
+              const shouldIncrement = isFromOthers && !alreadyProcessed;
               return {
                 ...r,
                 lastMessageContent: snippet,
                 lastMessageSender: incoming.senderName,
                 lastMessageTime: incoming.createdAt || new Date().toISOString(),
-                unreadCount: isFromOthers ? (r.unreadCount || 0) + 1 : r.unreadCount || 0,
+                unreadCount: shouldIncrement ? (r.unreadCount || 0) + 1 : (r.unreadCount || 0),
               };
             }
             return r;
@@ -98,8 +114,8 @@ export default function ChatListScreen({
 
           // Sort so the updated conversation jumps to the top
           updated.sort((a, b) => {
-            if (a.id === incoming.roomId) return -1;
-            if (b.id === incoming.roomId) return 1;
+            if (String(a.id).trim().toLowerCase() === incomingRoomId) return -1;
+            if (String(b.id).trim().toLowerCase() === incomingRoomId) return 1;
             return 0;
           });
 
@@ -118,9 +134,13 @@ export default function ChatListScreen({
 
     const removeStatusListener = chatWs.addStatusListener((statusEvt) => {
       if (statusEvt.status === 'READ') {
+        const evtRoomId = String(statusEvt.roomId || '').trim().toLowerCase();
+        const evtUserId = String(statusEvt.userId || '').trim().toLowerCase();
+        const currentUserId = String(currentUser?.id || '').trim().toLowerCase();
+
         setRooms((prev) => {
           const updated = prev.map((r) => {
-            if (r.id === statusEvt.roomId && statusEvt.userId === currentUser?.id) {
+            if (String(r.id).trim().toLowerCase() === evtRoomId && evtUserId === currentUserId) {
               return { ...r, unreadCount: 0 };
             }
             return r;

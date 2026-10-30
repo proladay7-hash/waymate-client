@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import WaymateIcon from './WaymateIcon';
 import WayMateAgentIcon from './WayMateAgentIcon';
 
-export type ScreenId = 'login' | 'forgot' | 'home' | 'trip' | 'vehicles' | 'profile' | 'changepwd' | 'chat' | 'sosdetail';
+export type ScreenId = 'login' | 'forgot' | 'home' | 'trips' | 'trip' | 'vehicles' | 'profile' | 'changepwd' | 'chat' | 'sosdetail';
 
 interface TopBarProps {
   currentScreen: ScreenId;

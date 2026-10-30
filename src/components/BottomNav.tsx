@@ -17,6 +17,7 @@ export default function BottomNav({ currentScreen, onNavigate, unreadChatCount =
 
   const navItems = [
     { id: 'home' as ScreenId, icon: 'appstore' as const, label: t('navFeed') },
+    { id: 'trips' as ScreenId, icon: 'compass' as const, label: t('navTrips') },
     { id: 'chat' as ScreenId, icon: 'message' as const, label: t('navChat') },
     { id: 'vehicles' as ScreenId, icon: 'car' as const, label: t('navGarage') },
     { id: 'profile' as ScreenId, icon: 'user' as const, label: t('navProfile') },
@@ -33,7 +34,7 @@ export default function BottomNav({ currentScreen, onNavigate, unreadChatCount =
       ]}
     >
       {navItems.map((item) => {
-        const isActive = currentScreen === item.id;
+        const isActive = currentScreen === item.id || (item.id === 'trips' && currentScreen === 'trip');
         const activeColor = colors.mBlue;
         const inactiveColor = colors.textMuted;
 

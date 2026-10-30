@@ -15,7 +15,8 @@ import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import { LocationProvider } from './src/context/LocationContext';
 import TopBar, { ScreenId } from './src/components/TopBar';
 import BottomNav from './src/components/BottomNav';
-import HomeScreen from './src/screens/HomeScreen';
+import SocialFeedScreen from './src/screens/SocialFeedScreen';
+import TripsScreen from './src/screens/TripsScreen';
 import TripDetailScreen from './src/screens/TripDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -146,6 +147,8 @@ function MainApp() {
   // Selected Trip & Saved favorites
   const [selectedTripId, setSelectedTripId] = useState<string>('trip-1');
   const [savedTripIds, setSavedTripIds] = useState<string[]>([]);
+  const [attachedTripForFeed, setAttachedTripForFeed] = useState<string | null>(null);
+  const [joinRequests, setJoinRequests] = useState<Record<string, 'pending' | 'accepted'>>({});
 
   // Load adventure trips from Neo4j database on mount
   useEffect(() => {
@@ -168,6 +171,7 @@ function MainApp() {
   activeChatRoomRef.current = activeChatRoom;
   const currentScreenRef = useRef<ScreenId>(currentScreen);
   currentScreenRef.current = currentScreen;
+  const processedChatMsgIdsRef = useRef<Set<string>>(new Set());
 
   // Connect / disconnect WebSocket on authentication state change & track unread messages
   useEffect(() => {
@@ -183,14 +187,38 @@ function MainApp() {
 
       // Increment unread count on incoming messages from others & trigger phone push notification
       const removeMsgListener = chatWs.addMessageListener((incoming) => {
+        if (!incoming || !incoming.id) return;
+
+        // Deduplication: prevent counting or notifying the exact same message packet multiple times
+        if (processedChatMsgIdsRef.current.has(incoming.id)) {
+          return;
+        }
+        processedChatMsgIdsRef.current.add(incoming.id);
+        if (processedChatMsgIdsRef.current.size > 300) {
+          const first = processedChatMsgIdsRef.current.values().next().value;
+          if (first) processedChatMsgIdsRef.current.delete(first);
+        }
+
+        const senderIdStr = String(incoming.senderId || '').trim().toLowerCase();
+        const currentUserIdStr = String(currentUser?.id || '').trim().toLowerCase();
+
+        // 1. NEVER count or push notifications for user's OWN sent messages
+        if (senderIdStr && currentUserIdStr && senderIdStr === currentUserIdStr) {
+          return;
+        }
+
+        // 2. Check if user is currently inside this active conversation screen
         const isViewing =
           currentScreenRef.current === 'chat' &&
-          activeChatRoomRef.current?.id === incoming.roomId;
+          Boolean(
+            activeChatRoomRef.current?.id &&
+            String(activeChatRoomRef.current.id).trim().toLowerCase() === String(incoming.roomId || '').trim().toLowerCase()
+          );
 
-        if (incoming.senderId !== currentUser.id && !isViewing) {
+        if (!isViewing) {
           setUnreadChatCount((prev) => prev + 1);
 
-          // Push notification on user's phone with sender avatar and name
+          // Push notification on user's phone ONLY from OTHER users
           const snippet =
             incoming.content ||
             (incoming.type === 'IMAGE'
@@ -219,7 +247,11 @@ function MainApp() {
 
       // Listen to real-time emergency SOS alerts from other riders
       const removeSosListener = chatWs.addSosListener((sos) => {
-        if (sos.senderId === currentUser.id) return;
+        const sosSenderStr = String(sos.senderId || '').trim().toLowerCase();
+        const currentUserIdStr = String(currentUser?.id || '').trim().toLowerCase();
+        if (sosSenderStr && currentUserIdStr && sosSenderStr === currentUserIdStr) {
+          return; // NEVER notify user of their own SOS
+        }
 
         // 1. Instantly increment the notification bell count badge
         setUnreadNotificationCount((prev) => prev + 1);
@@ -445,6 +477,20 @@ function MainApp() {
     setCurrentScreen('trip');
   };
 
+  const handleAttachTripToPost = (tripId: string) => {
+    setAttachedTripForFeed(tripId);
+    setCurrentScreen('home');
+  };
+
+  const handleRequestJoinTrip = (tripId: string, tripTitle: string, organizerName: string) => {
+    setJoinRequests((prev) => ({ ...prev, [tripId]: 'pending' }));
+    showToast(t('joinSlotRequested'), 'success');
+    triggerLocalPhoneNotification(
+      '🏍️ Trip Join Request Sent',
+      `Your request to join "${tripTitle}" was sent to ${organizerName}.`
+    );
+  };
+
   // Back handler based on current active screen
   const handleBack = () => {
     if (currentScreen === 'chat' && activeChatRoom) {
@@ -452,6 +498,8 @@ function MainApp() {
     } else if (currentScreen === 'chat') {
       setCurrentScreen('home');
     } else if (currentScreen === 'trip') {
+      setCurrentScreen('trips');
+    } else if (currentScreen === 'trips') {
       setCurrentScreen('home');
     } else if (currentScreen === 'sosdetail') {
       setCurrentScreen('home');
@@ -510,12 +558,33 @@ function MainApp() {
 
         {/* Authenticated Screens */}
         {isLoggedIn && currentScreen === 'home' && (
-          <HomeScreen
+          <SocialFeedScreen
+            currentUser={currentUser}
             trips={trips}
+            savedTripIds={savedTripIds}
+            preSelectedTripId={attachedTripForFeed}
+            onClearPreSelectedTrip={() => setAttachedTripForFeed(null)}
+            joinRequests={joinRequests}
+            onRequestJoinTrip={handleRequestJoinTrip}
+            onNavigateToTrip={handleSelectTrip}
+            onOpenDirectChat={(otherUserId, otherUserName, otherAvatar) => {
+              handleOpenDirectChat(otherUserId, otherUserName, otherAvatar);
+            }}
+            showToast={showToast}
+          />
+        )}
+
+        {isLoggedIn && currentScreen === 'trips' && (
+          <TripsScreen
+            trips={trips}
+            currentUser={currentUser}
             onAddTrip={handleAddTrip}
             onSelectTrip={handleSelectTrip}
+            onAttachToPost={handleAttachTripToPost}
             savedTripIds={savedTripIds}
             onToggleSaveTrip={handleToggleSaveTrip}
+            joinRequests={joinRequests}
+            onRequestJoinTrip={handleRequestJoinTrip}
             showToast={showToast}
           />
         )}
@@ -524,9 +593,12 @@ function MainApp() {
           <TripDetailScreen
             tripId={selectedTripId}
             trips={trips}
-            onBack={() => setCurrentScreen('home')}
+            onBack={() => setCurrentScreen('trips')}
             savedTripIds={savedTripIds}
             onToggleSaveTrip={handleToggleSaveTrip}
+            onAttachToPost={handleAttachTripToPost}
+            onRequestJoinTrip={handleRequestJoinTrip}
+            joinRequests={joinRequests}
             showToast={showToast}
           />
         )}

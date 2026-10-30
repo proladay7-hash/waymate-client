@@ -21,6 +21,9 @@ interface TripDetailScreenProps {
   onBack: () => void;
   savedTripIds: string[];
   onToggleSaveTrip: (tripId: string) => void;
+  onAttachToPost?: (tripId: string) => void;
+  onRequestJoinTrip?: (tripId: string, tripTitle: string, organizerName: string) => void;
+  joinRequests?: Record<string, 'pending' | 'accepted'>;
   showToast: (message: string, type?: 'success' | 'info') => void;
 }
 
@@ -30,6 +33,9 @@ export default function TripDetailScreen({
   onBack,
   savedTripIds,
   onToggleSaveTrip,
+  onAttachToPost,
+  onRequestJoinTrip,
+  joinRequests = {},
   showToast,
 }: TripDetailScreenProps) {
   const { language, t, formatDistance, formatSpeed } = useLanguage();
@@ -71,6 +77,19 @@ export default function TripDetailScreen({
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
+          {onAttachToPost && (
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+              onPress={() => onAttachToPost(trip.id)}
+              activeOpacity={0.8}
+            >
+              <FontAwesome6 name="paper-plane" size={12} color={colors.mBlue} />
+              <Text style={[styles.saveBtnText, { color: colors.text }]}>
+                {t('attachTripToPost')}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={[styles.saveBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
             onPress={() => onToggleSaveTrip(trip.id)}
@@ -136,6 +155,42 @@ export default function TripDetailScreen({
             {trip.groupSize.split(' ')[0]}
           </Text>
         </View>
+      </View>
+
+      {/* Join Ride Banner */}
+      <View style={[styles.joinBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[styles.joinBannerTitle, { color: colors.text }]}>
+            {language === 'VIE' ? 'Tham gia cùng đoàn' : 'Join this Adventure Ride'}
+          </Text>
+          <Text style={[styles.joinBannerSubtitle, { color: colors.textMuted }]}>
+            {trip.groupSize} • {language === 'VIE' ? 'Trưởng đoàn: ' : 'Lead: '} {trip.riderName}
+          </Text>
+        </View>
+
+        {joinRequests[trip.id] === 'pending' ? (
+          <View style={[styles.joinedBadge, { backgroundColor: 'rgba(16, 185, 129, 0.12)', borderColor: '#10B981' }]}>
+            <AntDesign name="check" size={13} color="#10B981" />
+            <Text style={{ color: '#10B981', fontSize: 11.5, fontWeight: '800' }}>
+              {t('joinRequestedBadge')}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.joinActionBtn, { backgroundColor: colors.mRed }]}
+            onPress={() => {
+              if (onRequestJoinTrip) {
+                onRequestJoinTrip(trip.id, displayTitle, trip.riderName);
+              } else {
+                showToast(t('joinSlotRequested'), 'success');
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <FontAwesome6 name="user-plus" size={12} color="#FFFFFF" />
+            <Text style={styles.joinActionBtnText}>{t('requestToJoin')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Dynamic Route Map Visualizer Mock (Elevation Profile) */}
@@ -774,5 +829,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     textDecorationLine: 'underline',
+  },
+  joinBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+  },
+  joinBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  joinBannerSubtitle: {
+    fontSize: 11,
+  },
+  joinActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  joinActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  joinedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
   },
 });
